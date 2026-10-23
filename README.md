@@ -2,7 +2,7 @@
 
 A pickleball rating tool for league and tournament organizers who don't want to rely on DUPR or self-rating.
 
-**Live app:** https://iamthedoctor1977.github.io/CourtIQ/
+**Live app:** https://iamthedoctor1977.github.io/courtiq/
 
 ## How it works
 
