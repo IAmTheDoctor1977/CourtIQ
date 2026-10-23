@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Rate pickleball players without self-rating: a supervised scenario test of court IQ plus an observed skills check.">
+<meta name="theme-color" content="#2f5d8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Court IQ">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Court IQ Rating</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one scorecard-width column; the court diagram leads each scenario. */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --fg:#17231d; --muted:#5b6a62; --line:#d7dfd9;
+  --court:#2f5d8a; --court-fill:#e7eef5; --kitchen:#d5e3ee; --accent:#2f5d8a; --accent-ink:#ffffff;
+  --us:#2f5d8a; --them:#c4532c; --ball:#e3b00c; --good:#2f7d4f; --warn:#b7791f; --bad:#b33a3a;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1714; --surface:#16211c; --fg:#e6ede8; --muted:#9aaba2; --line:#2a3832;
+  --court:#8fb6dd; --court-fill:#16283a; --kitchen:#1d3550; --accent:#8fb6dd; --accent-ink:#0f1714;
+  --us:#8fb6dd; --them:#ec8a63; --ball:#f2c94c; --good:#6cc28f; --warn:#e0a84a; --bad:#e07a7a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1714; --surface:#16211c; --fg:#e6ede8; --muted:#9aaba2; --line:#2a3832;
+  --court:#8fb6dd; --court-fill:#16283a; --kitchen:#1d3550; --accent:#8fb6dd; --accent-ink:#0f1714;
+  --us:#8fb6dd; --them:#ec8a63; --ball:#f2c94c; --good:#6cc28f; --warn:#e0a84a; --bad:#e07a7a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:2rem;text-transform:uppercase}
+h1 span{color:var(--accent)}
+h2{font-size:1.6rem}
+h3{font-size:1.2rem}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{font:600 .9rem var(--f-body);background:none;border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:999px;cursor:pointer}
+nav button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:14px;min-width:0}
+.muted{color:var(--muted)}
+.label{font:500 .75rem var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+p{margin:0;max-width:65ch}
+label{display:grid;gap:4px;font-weight:600}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
+textarea{min-height:72px;resize:vertical}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row>.grow{flex:1 1 180px;min-width:0}
+.btn{font:700 1rem var(--f-body);border:1px solid var(--accent);border-radius:8px;padding:10px 18px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:none;color:var(--accent)}
+.btn.danger{background:none;color:var(--bad);border-color:var(--bad)}
+.btn.sm{font-size:.88rem;padding:6px 12px}
+.linkbtn{background:none;border:0;color:var(--muted);font:inherit;font-size:.85rem;text-decoration:underline;cursor:pointer;padding:4px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .2s}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.court{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:2px solid}
+.opts{display:grid;gap:10px}
+.opt{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
+.opt.best{border-color:var(--good);box-shadow:inset 3px 0 0 var(--good)}
+.opt.worst{border-color:var(--bad);box-shadow:inset 3px 0 0 var(--bad)}
+.opt .letter{font:700 1.1rem var(--f-display);width:24px}
+.opt .picks{grid-column:2;display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:600 .85rem var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.b[aria-pressed="true"],.chip.yes[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--accent-ink)}
+.chip.w[aria-pressed="true"],.chip.no[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:var(--accent-ink)}
+.chip.inc[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:var(--accent-ink)}
+.conf{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.conf button{font:600 .85rem var(--f-body);border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;padding:8px 4px;cursor:pointer}
+.conf button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.big b{font:700 3.6rem/1 var(--f-display);color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:2px}
+.stat b{font:700 2rem/1 var(--f-display)}
+.bands{display:grid;gap:8px}
+.band{display:grid;grid-template-columns:minmax(0,9rem) 1fr 48px;gap:10px;align-items:center;font-variant-numeric:tabular-nums}
+.bar{height:14px;background:var(--line);border-radius:3px;position:relative;overflow:hidden}
+.bar i{display:block;height:100%}
+.bar.th::after{content:"";position:absolute;left:70%;top:0;bottom:0;border-left:2px dashed var(--fg);opacity:.5}
+.pill{display:inline-block;font:600 .75rem var(--f-body);padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.good{color:var(--good)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}.pill.mut{color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font:500 .72rem var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--bg)}
+.notice{border-left:3px solid var(--warn);padding:8px 12px;background:var(--bg);border-radius:4px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.step{border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:2px;background:var(--bg)}
+.step.done{border-color:var(--good)}
+.step b{font:700 1.05rem var(--f-display)}
+@media (max-width:520px){.steps{grid-template-columns:1fr}}
+details.lvl{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg)}
+details.lvl summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700;list-style:none}
+details.lvl summary::-webkit-details-marker{display:none}
+.skill{border-top:1px solid var(--line);padding-top:10px;margin-top:10px;display:grid;gap:6px}
+.skill .name{font-weight:700}
+.skill .crit{font:500 .78rem var(--f-mono);color:var(--muted)}
+.keyrow{display:grid;grid-template-columns:36px 1fr;gap:8px;font-size:.92rem}
+.k{font:500 .85rem var(--f-mono);text-align:right}
+.k.pos{color:var(--good)}.k.neg{color:var(--bad)}
+.kiosk header{display:none}
+.anim{display:grid;gap:2px}
+.strip{width:100%;height:auto;display:block}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:999px;font-weight:600;z-index:20}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header>
+    <h1>Court <span>IQ</span></h1>
+    <nav id="nav" aria-label="Sections">
+      <button id="nav-players" aria-current="true" data-view="players">Players</button>
+      <button id="nav-bank" data-view="bank">Scenario bank</button>
+      <button id="nav-skills" data-view="skillsref">Skills list</button>
+      <button id="nav-settings" data-view="settings">Settings</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+// Court IQ scenario bank. 60 items: 4 levels x 5 domains x 3.
+// Court coords: x 72-688 (net 380, kitchen lines 282/478), y 72-352 (centerline 212).
+// You are always on the left half. "Top" = your left as you face the net.
+// pl: [posKey | [x,y,team], label]; label starting with ^ is drawn above the player.
+// ball: [x,y]; path: [x1,y1,x2,y2] dashed ball path; hit: same, solid opponent attack line.
+// note: [x,y,text,anchor]; o: [option text, key -2..+2, rationale].
+const KITCHEN4 = [['uKT','You'],['uKB','Partner'],['tKT','Opponent'],['tKB','Opponent']];
+const BANK = [
+// ---------------- 3.0 ----------------
+{id:'P30a',lv:'3.0',dom:'pos',t:'You just hit a deep return',
+ sit:"You're on the receiving team and just hit a deep crosscourt return. Your partner started at the kitchen line. Both opponents are at their baseline. What do you do now?",
+ pl:[['uBB','You'],['uKT','Partner'],['tBT','Server'],['tBB','Opponent']],ball:[630,160],path:[110,274,622,162],note:[490,164,'Your deep return','middle'],
+ o:[["Stay at the baseline until you see their third shot.",-1,"Leaves a split formation; their next ball targets the gap."],
+    ["Move toward the kitchen line. If you're not there when they hit, split-step, then keep moving.",2,"A deep return buys time to advance; the split step keeps you balanced at their contact."],
+    ["Sprint to the kitchen line without stopping.",0,"Gets you forward, but you're moving at contact and can't react to a ball at your feet."],
+    ["Move forward only if your return was short.",-2,"Reversed logic: a short return gives you less time, not more."]]},
+{id:'P30b',lv:'3.0',dom:'pos',t:'You just served',
+ sit:"You just served from the right side. Your partner is at the baseline beside you. The returner is about to hit. Where do you stay until the return arrives?",
+ pl:[['uBB','You'],['uBT','Partner'],['tBT','Returner'],['tKB','Opponent']],ball:[640,150],path:[110,272,630,152],note:[490,164,'Your serve','middle'],
+ o:[["Stay back at the baseline and let the return bounce.",2,"The two-bounce rule means you must let the return bounce; staying back keeps it in front of you."],
+    ["Follow your serve in toward the kitchen line.",-2,"You must let the return bounce, so you'll be caught mid-court with a ball at your feet."],
+    ["Move to the middle of the court and wait there.",-1,"Mid-court is where deep returns land at your feet."],
+    ["Stay back, but step a foot inside the baseline.",0,"Workable, but a deep return now lands at your feet."]]},
+{id:'P30c',lv:'3.0',dom:'pos',t:'Your partner is returning serve',
+ sit:"Your team is receiving and your partner is returning serve. You're standing at the baseline beside him. Where should you be before the serve?",
+ pl:[['uBT','You'],['uBB','Partner'],['tBT','Server'],['tBB','Opponent']],
+ o:[["At the kitchen line on your side.",2,"The returner's partner starts at the kitchen line; the receiving team gets there first."],
+    ["At the baseline beside your partner.",-1,"Gives away the receiving team's built-in advantage."],
+    ["Halfway between the baseline and kitchen.",-2,"The transition zone is where balls land at your feet."],
+    ["At the kitchen line, but in the middle of the court.",0,"Right depth, but it leaves your sideline open."]]},
+{id:'H30a',lv:'3.0',dom:'shot',t:'Deep return to you on the serving team',
+ sit:"You're on the serving team and both of you are at the baseline. The return comes deep to you at medium pace; you have time to set your feet. Both opponents are now at the kitchen line. What do you hit?",
+ pl:[['uBB','You'],['uBT','Partner'],['tKT','^Returner, now at the kitchen'],['tKB','Opponent']],ball:[126,266],path:[628,148,134,262],note:[150,304,'Deep, medium pace','start'],
+ o:[["A soft drop into the kitchen, then move forward as it lands.",2,"Neutralizes the net team and lets you advance."],
+    ["Drive it low at the middle, stay back, and drop the next ball.",1,"A sound drive-then-drop pattern with a little less control."],
+    ["Lob over the opponents.",-1,"Low percentage from deep; a short lob gets put away."],
+    ["Hit it high and soft down the middle to buy time to move up.",-2,"Hands them an attackable ball while you're in the transition zone."]]},
+{id:'H30b',lv:'3.0',dom:'shot',t:'Returning serve',
+ sit:"You're returning a medium-paced serve. Your partner is at the kitchen line. What return do you hit?",
+ pl:[['uBB','You'],['uKT','Partner'],['tBT','Server'],['tBB','Opponent']],ball:[110,262],path:[650,150,118,260],note:[150,304,'Medium-paced serve','start'],
+ o:[["A deep return with some arc, landing near their baseline.",2,"Keeps the server back and gives you time to reach the kitchen."],
+    ["A hard, low drive that lands mid-court.",-1,"Comes back fast while you're still moving up."],
+    ["A soft, short return into their kitchen.",-2,"Draws the server forward and gives you no time to advance."],
+    ["A medium-depth return to the middle of their court.",0,"Playable, but gives the server an easier third shot."]]},
+{id:'H30c',lv:'3.0',dom:'shot',t:'A low dink at your feet',
+ sit:"All four players are at the kitchen line. The opponent's dink lands in the kitchen in front of you and stays low, below net height. What do you hit?",
+ pl:KITCHEN4,ball:[300,150],path:[480,146,308,150],note:[296,124,'Below net height','start'],
+ o:[["A soft dink back into their kitchen.",2,"A low ball can't be attacked; reset with a dink."],
+    ["Hit it hard over the net.",-2,"From below the net, a hard ball rises and gets attacked."],
+    ["Lob over the opponent.",-1,"Low percentage from the kitchen against a set opponent."],
+    ["Push it firmly at the opponent's feet.",0,"Can work, but a firm ball from low often floats."]]},
+{id:'T30a',lv:'3.0',dom:'part',t:'A drive heading long near your partner',
+ sit:"All four players are at the kitchen line. An opponent drives a ball toward your partner. It's rising past his shoulders and looks like it will land out. What do you do?",
+ pl:KITCHEN4,ball:[200,300],path:[480,282,212,298],note:[150,334,'Rising, shoulder height','start'],
+ o:[["Call \"out\" or \"bounce\" loudly so he lets it go.",2,"Your partner is focused on the ball; you have the better view of its flight."],
+    ["Say nothing; it's his ball.",-1,"A silent partner often watches a winnable point get played."],
+    ["Reach across and hit it yourself.",-2,"Takes a likely-out ball on his side."],
+    ["Let him decide on his own.",0,"Not wrong, but you're missing a chance to help."]]},
+{id:'T30b',lv:'3.0',dom:'part',t:'A deep ball down the middle',
+ sit:"You and your partner are both at the baseline. A deep ball comes down the middle, between you. Both of you are right-handed, and you're on the left side. Who takes it?",
+ pl:[['uBT','You'],['uBB','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[110,210],path:[480,200,120,210],
+ o:[["You take it with your forehand and call it.",2,"The middle is on your forehand; forehand-in-the-middle is the default."],
+    ["Leave it for your partner.",-1,"It's on his backhand."],
+    ["Both go for it.",-2,"Leads to collisions or both players pulling off."],
+    ["Whoever is closer takes it, without calling.",0,"Silence in the middle causes hesitation."]]},
+{id:'T30c',lv:'3.0',dom:'part',t:'Your partner is pulled wide',
+ sit:"All four players are at the kitchen line. A sharp crosscourt dink pulls your partner wide toward his sideline. Where do you move?",
+ pl:[['uKT','You'],[[266,326,'u'],'^Partner, pulled wide'],['tKT','Opponent'],['tKB','Opponent']],ball:[290,330],path:[480,150,298,328],
+ o:[["Shift toward the middle to cover the gap.",2,"Teams move together; the gap between you is the target."],
+    ["Stay where you are.",-1,"Leaves the middle open."],
+    ["Run across to cover his sideline.",-2,"Leaves your entire side and the middle open."],
+    ["Back up toward the baseline.",-1,"Gives up the net with no reason to."]]},
+{id:'R30a',lv:'3.0',dom:'read',t:'One opponent up, one back',
+ sit:"One opponent is at the kitchen line; the other is stuck at the baseline. You have an easy ball at the kitchen. Where do you hit it?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Opponent'],['tBB','Opponent']],ball:[294,152],path:[650,276,302,154],
+ o:[["Low, at the feet of the player who's back.",2,"He has the hardest shot and the longest way to the net."],
+    ["To the net player's paddle.",-2,"Feeds the opponent who's in the best position."],
+    ["Lob over the net player.",0,"Possible, but the back player can cover it."],
+    ["Hard down the middle.",1,"Good target, but less pressure than the back player's feet."]]},
+{id:'R30b',lv:'3.0',dom:'read',t:'You notice a weak backhand',
+ sit:"In warm-up, you notice the opponent across from you misses most of his backhands. What's your plan for the game?",
+ pl:KITCHEN4,
+ o:[["Hit to his backhand whenever you can.",2,"Play into the weakness you've identified."],
+    ["Ignore it and play your normal game.",-1,"Wastes useful information."],
+    ["Hit everything hard at him.",-1,"Pace without placement lets him block."],
+    ["Avoid him and play his partner.",-2,"Plays away from the weakness."]]},
+{id:'R30c',lv:'3.0',dom:'read',t:'A drive rising past your shoulders',
+ sit:"You're at the kitchen line. An opponent's drive is still rising as it passes your shoulders. What do you do?",
+ pl:KITCHEN4,ball:[240,126],path:[480,140,250,128],note:[110,100,'Rising past your shoulders','start'],
+ o:[["Let it go; it's likely out.",2,"A ball still rising at the kitchen line usually lands long."],
+    ["Swing at it.",-1,"Turns a likely-out ball into your error."],
+    ["Duck and let your partner play it.",0,"Letting it go is right; leaving it to him adds confusion."],
+    ["Back up and play it off the bounce.",-1,"Gives up the net to play a ball that's going out."]]},
+{id:'G30a',lv:'3.0',dom:'game',t:'Score call after winning a point',
+ sit:"You're the first server. The score was 5\u20133\u20131 and your team won the point. What happens next?",
+ pl:[['uBB','You'],['uBT','Partner'],['tBT','Opponent'],['tBB','Opponent']],
+ o:[["You switch sides with your partner, then serve at 6\u20133\u20131.",2,"The server keeps serving after a won point, switching sides each time."],
+    ["You stay on the same side and serve at 6\u20133\u20131.",-2,"The server must switch sides after scoring."],
+    ["Your partner serves next.",-1,"The serve stays with you until your team loses a rally."],
+    ["You switch sides and call 6\u20133\u20132.",-1,"The server number changes only after a lost rally."]]},
+{id:'G30b',lv:'3.0',dom:'game',t:'Side out: who serves first?',
+ sit:"Your team just won the serve back (side out). Who serves first?",
+ pl:[['uBB','You'],['uBT','Partner'],['tBT','Opponent'],['tBB','Opponent']],
+ o:[["The player currently on the right (even) side.",2,"After a side out, the player on the right serves first."],
+    ["Whoever served last for your team.",-1,"Serving order resets at the side out."],
+    ["The player who served first in the game.",-1,"Their starting position checks score parity, not who serves first."],
+    ["Either one; agree between you.",-2,"Serving out of order is a fault."]]},
+{id:'G30c',lv:'3.0',dom:'game',t:'Up 10\u20138, one point from winning',
+ sit:"You're up 10\u20138 in a game to 11 and serving. How do you play the point?",
+ pl:[['uBB','You'],['uBT','Partner'],['tBT','Opponent'],['tBB','Opponent']],
+ o:[["Same high-percentage play: deep serve, deep return, patient points.",2,"The pattern that got you to 10 is the safest way to finish."],
+    ["Go for winners to close it out.",-1,"Raises your error rate when you're ahead."],
+    ["Hit soft, high balls to avoid errors.",-2,"Gives them attackable balls."],
+    ["Serve harder to try for an ace.",-1,"Missed serves give away the point."]]},
+// ---------------- 3.5 ----------------
+{id:'P35a',lv:'3.5',dom:'pos',t:'An opponent lobs over your partner',
+ sit:"All four players are at the kitchen line. An opponent lobs over your partner's head, down the line; it will land deep. Your partner turns and runs back to chase it. What do you do?",
+ pl:[['uKT','You'],['uKB','^Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[122,290],path:[480,280,130,290],note:[176,330,'Lob over your partner','middle'],
+ o:[["Stay at the kitchen line in case they return it short.",-1,"Splits the team; their next ball goes through the gap."],
+    ["Drop back with your partner so you're level when he hits.",2,"Keeps the team together to defend the next ball."],
+    ["Slide over to cover his side of the kitchen line.",-1,"Leaves your side open while he is already on the ball."],
+    ["Call \"switch\" and run back to chase it yourself.",-2,"Two players on one ball, no one covering the court."]]},
+{id:'P35b',lv:'3.5',dom:'pos',t:'Your drop lands in the kitchen',
+ sit:"You hit a third-shot drop from the baseline. It lands softly in their kitchen, so the opponent has to hit up. What do you do?",
+ pl:[['uBB','You'],['uBT','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[430,276],path:[112,278,422,276],note:[180,320,'Your drop','middle'],
+ o:[["Move forward toward the kitchen line with your partner.",2,"A good drop earns the advance; go while they must hit up."],
+    ["Stay back to see what they do.",-1,"Wastes the drop."],
+    ["Move halfway in and stop there.",0,"Better than staying back, but leaves you in the transition zone."],
+    ["Move forward only if your partner does.",-1,"Hesitation; both should read the drop."]]},
+{id:'P35c',lv:'3.5',dom:'pos',t:'Your partner poaches',
+ sit:"All four players are at the kitchen line. Your partner crosses the middle onto your side to poach a ball. Where do you go?",
+ pl:[[[266,110,'u'],'^You'],[[266,190,'u'],'Partner, poaching'],['tKT','Opponent'],['tKB','Opponent']],ball:[290,176],path:[480,150,298,174],
+ o:[["Slide across to cover the side he left.",2,"Switching keeps both sides covered."],
+    ["Stay where you are.",-1,"Leaves his whole side open."],
+    ["Move toward the middle as well.",-2,"Both players end up in the middle."],
+    ["Back up toward the baseline.",-1,"Gives up the net."]]},
+{id:'H35a',lv:'3.5',dom:'shot',t:'The dink pops up to chest height',
+ sit:"All four players are at the kitchen line. The opponent's dink pops up to your chest height, on your forehand, just in front of you. What do you hit?",
+ pl:KITCHEN4,ball:[294,152],path:[480,146,302,152],note:[296,124,'Chest high','start'],
+ o:[["Dink it back softly to keep the rally going.",-1,"Wastes an attackable ball."],
+    ["Hit it hard and downward at the nearest opponent's feet or paddle-side hip.",2,"A downward ball at the body is the hardest to counter."],
+    ["Drive it hard and flat toward their baseline.",-2,"A flat ball from chest height carries long; they let it go out."],
+    ["Angle it crosscourt, away from both opponents.",1,"Strong if the angle is open, but a smaller target."]]},
+{id:'H35b',lv:'3.5',dom:'shot',t:'Choosing a dink target',
+ sit:"All four players are at the kitchen line in a neutral dink rally. Where do you aim your next dink?",
+ pl:KITCHEN4,ball:[290,150],
+ o:[["Crosscourt, low into their kitchen.",2,"Longer distance and the lower middle of the net give the most margin."],
+    ["Straight ahead to the player across from you.",0,"Fine, but less margin."],
+    ["Down the middle to the opponent's forehand.",-1,"Feeds his strongest shot."],
+    ["A higher, floating dink so it clears the net safely.",-2,"Gives them an attackable ball."]]},
+{id:'H35c',lv:'3.5',dom:'shot',t:'The fifth shot from the transition zone',
+ sit:"You followed your drop and you're now in the transition zone. The opponent dinks a low ball back to you. What do you hit?",
+ pl:[['uTT','You'],['uTB','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[220,150],path:[480,146,228,150],note:[110,100,'Low, soft ball','start'],
+ o:[["Another soft drop into the kitchen, then keep moving in.",2,"Keep resetting until you reach the line."],
+    ["Drive it hard.",-1,"Hitting up hard from the transition zone gets countered."],
+    ["Lob over the opponent.",-1,"Low percentage with both opponents at the net."],
+    ["Hit it high to the middle to buy time.",-2,"Gives them an attackable ball."]]},
+{id:'T35a',lv:'3.5',dom:'part',t:'A ball comes down the middle',
+ sit:"All four players are at the kitchen line. You're on the left side as you face the net, and both of you are right-handed. The opponent's dink comes down the middle. Who takes it?",
+ pl:KITCHEN4,ball:[290,213],path:[480,270,298,216],note:[736,392,'Both of you are right-handed','end'],
+ o:[["You take it with your forehand and call \"mine.\"",2,"The middle ball is on your forehand."],
+    ["Leave it for your partner.",-1,"It's on his backhand, reaching across his body."],
+    ["Both go for it; whoever's quicker takes it.",-2,"Paddle clashes or both players pull off."],
+    ["Let it go, since middle balls often land out.",-1,"A dink in a kitchen exchange rarely lands out."]]},
+{id:'T35b',lv:'3.5',dom:'part',t:'A crosscourt lob over you',
+ sit:"All four players are at the kitchen line. An opponent lobs crosscourt over your head. Your partner, diagonal from where the ball will land, has the better angle to chase it. What happens?",
+ pl:KITCHEN4,ball:[120,110],path:[480,280,130,112],
+ o:[["Your partner chases it; you call \"switch\" and slide to cover his side.",2,"The player with the better angle chases; the other switches."],
+    ["You chase it yourself, backpedaling.",0,"Possible, but backpedaling is slower and riskier."],
+    ["Both of you chase it.",-2,"No one covers the court."],
+    ["Both stay at the kitchen line.",-1,"Concedes the lob."]]},
+{id:'T35c',lv:'3.5',dom:'part',t:'Your partner\u2019s drop pops up',
+ sit:"You're both moving up through the transition zone. Your partner's drop pops up high, and an opponent at the kitchen is about to smash it. What do you do?",
+ pl:[['uTT','You'],['uTB','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[470,270],path:[210,276,462,270],note:[560,320,'High, attackable','middle'],
+ o:[["Stop, split-step, get your paddle up, and be ready to block.",2,"Get set before they hit."],
+    ["Keep running forward.",-2,"Moving at contact makes you an easy target."],
+    ["Turn and run back.",-1,"You can't outrun a smash; you'll be hit while turned."],
+    ["Move toward your partner.",-1,"Bunches the team and opens your side."]]},
+{id:'R35a',lv:'3.5',dom:'read',t:'An opponent stuck in the transition zone',
+ sit:"One opponent didn't get to the kitchen line; he's in the transition zone. You have a ball you can control. Where do you hit it?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Opponent'],['tTB','Opponent']],ball:[294,152],
+ o:[["Low, at his feet.",2,"He has to hit up from the hardest spot on the court."],
+    ["Deep, to push him back.",0,"Keeps him back but gives him time."],
+    ["To the net player.",-1,"Plays into the stronger position."],
+    ["Lob over him.",-1,"He's facing the ball and can play it."]]},
+{id:'R35b',lv:'3.5',dom:'read',t:'An opponent who poaches a lot',
+ sit:"The opponent diagonal from you keeps crossing the middle to poach your crosscourt dinks. What do you change?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Opponent'],[[494,240,'t'],'Poacher']],
+ o:[["When he moves, hit down the line behind him.",2,"Punishes the poach where it leaves space."],
+    ["Keep dinking crosscourt.",-1,"Keeps feeding his poach."],
+    ["Hit straight at him.",0,"Can jam him, but he's ready for it."],
+    ["Stop dinking and lob.",-1,"Gives up the dink game entirely."]]},
+{id:'R35c',lv:'3.5',dom:'read',t:'An opponent stretched off the court',
+ sit:"An opponent stretched wide off the court to reach a dink, and his reply pops up softly to you.",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Opponent'],[[494,346,'t'],'^Pulled wide']],ball:[294,232],path:[480,340,302,236],
+ o:[["Attack it into the gap he left.",2,"The open court is the target."],
+    ["Dink it back to him.",-1,"Gives him time to recover."],
+    ["Hit it at his partner's feet.",0,"Fine, but the open court is better."],
+    ["Lob it.",-2,"Wastes the chance."]]},
+{id:'G35a',lv:'3.5',dom:'game',t:'Your drops keep hitting the net',
+ sit:"You've lost three straight points on third-shot drops into the net. What do you adjust?",
+ pl:[['uBB','You'],['uBT','Partner'],['tKT','Opponent'],['tKB','Opponent']],
+ o:[["Aim the drop a little higher over the net and mix in a drive.",2,"More margin; a drive keeps them honest."],
+    ["Keep hitting the same drop.",-1,"Ignores a clear pattern."],
+    ["Stop dropping; drive every third shot.",0,"Changes the pattern, but gives up a key shot."],
+    ["Lob every third shot.",-2,"Low percentage from the baseline."]]},
+{id:'G35b',lv:'3.5',dom:'game',t:'The wind at your back',
+ sit:"You've switched ends and the wind is now at your back. What changes?",
+ pl:KITCHEN4,note:[110,100,'Wind behind you \u2192','start'],
+ o:[["Hit softer and aim shorter; lob less.",2,"The wind carries balls long."],
+    ["Lob more.",-2,"Lobs with the wind sail out."],
+    ["Hit harder drives.",-1,"Drives carry long."],
+    ["Nothing changes.",-1,"Ignores conditions."]]},
+{id:'G35c',lv:'3.5',dom:'game',t:'Serving at 9\u20139',
+ sit:"It's 9\u20139 in a game to 11 and you're serving. What serve do you hit?",
+ pl:[['uBB','You'],['uBT','Partner'],['tBT','Opponent'],['tBB','Opponent']],
+ o:[["Your reliable serve, aimed deep.",2,"Get it in deep; a missed serve gives away the chance."],
+    ["Your hardest serve, going for an ace.",-1,"Raises the miss rate at a key moment."],
+    ["A soft, short serve to be safe.",-1,"Lets the returner come in and attack."],
+    ["A spin serve you've rarely used.",-2,"Untested shots under pressure fail more often."]]},
+// ---------------- 4.0 ----------------
+{id:'P40a',lv:'4.0',dom:'pos',t:'Advancing after your drop',
+ sit:"You're moving up after a drop. You're halfway through the transition zone when the opponent is about to hit. What do you do?",
+ pl:[[[220,280,'u'],'You'],[[220,140,'u'],'Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[470,276],
+ o:[["Split-step as he makes contact, wherever you are.",2,"Being balanced at contact matters more than being at the line."],
+    ["Keep running to the line.",-1,"Moving at contact leaves you unable to react."],
+    ["Stop only once you reach the kitchen line.",-1,"Same problem: moving through his contact."],
+    ["Back up to the baseline.",-2,"Gives up the ground you earned."]]},
+{id:'P40b',lv:'4.0',dom:'pos',t:'The ball is wide on your partner\u2019s side',
+ sit:"The ball is with the opponent wide on your partner's side of the court. You're on the left. Where do you position yourself?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Opponent'],[[494,330,'t'],'^Opponent, with ball']],ball:[480,330],
+ o:[["Shift toward the middle; the team slides toward the ball.",2,"Covers the middle, where most of his angles go."],
+    ["Stay centered on your half.",-1,"Leaves a gap in the middle."],
+    ["Move toward your sideline.",-2,"Widens the gap."],
+    ["Back up a step.",-1,"Gives up the net for no reason."]]},
+{id:'P40c',lv:'4.0',dom:'pos',t:'Pushed back off the kitchen line',
+ sit:"A hands battle pushed you three feet back off the kitchen line. The ball is coming back to you at medium pace. What do you do?",
+ pl:[[[226,140,'u'],'You'],['uKB','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[246,146],path:[480,146,254,146],
+ o:[["Block a soft reset into the kitchen, then step back in.",2,"Reset first, then regain the line."],
+    ["Keep hitting hard from where you are.",-1,"Hitting up from behind the line invites a put-away."],
+    ["Retreat to the baseline.",-2,"Gives up the net completely."],
+    ["Step in first, then hit.",-1,"Moving at contact costs control."]]},
+{id:'H40a',lv:'4.0',dom:'shot',t:'A hard ball at your feet',
+ sit:"You're moving up after a drop that floated a little high, and you're in the transition zone. An opponent at the kitchen hits a hard, low ball at your feet. What do you do?",
+ pl:[['uTB','^You'],['uTT','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[206,302],path:[480,278,214,300],note:[190,336,'Hard and low, at your feet','middle'],
+ o:[["Swing hard and counter it back at them.",-1,"A hard swing from below the net pops up or goes long."],
+    ["Block a soft reset into the kitchen, split-step, and advance once the ball is unattackable.",2,"Neutralizes the attack and earns the next step."],
+    ["Block a soft reset, then sprint to the line right away.",0,"Good shot, but moving at their contact gives them a target."],
+    ["Back away and let it bounce deeper for a bigger swing.",-2,"Gives up position and still leaves you hitting up."]]},
+{id:'H40b',lv:'4.0',dom:'shot',t:'A speed-up at your chest',
+ sit:"At the kitchen line, the opponent speeds up a ball at your chest. It arrives above net height and you're balanced. What do you do?",
+ pl:KITCHEN4,ball:[292,136],path:[480,144,300,138],note:[296,112,'Above net height','start'],
+ o:[["Counter it downward at his feet or hip.",2,"A high ball you're ready for can be countered down."],
+    ["Block it soft into the kitchen.",1,"Safe, but gives back the initiative."],
+    ["Swing hard and flat toward their baseline.",-2,"A flat counter carries long."],
+    ["Duck out of the way.",-1,"A chest-high ball is usually in."]]},
+{id:'H40c',lv:'4.0',dom:'shot',t:'A short, high return',
+ sit:"You're on the serving team. The return lands short in your court and sits up. The returner is moving forward. What's your third shot?",
+ pl:[[[170,280,'u'],'You'],['uBT','Partner'],[[540,140,'t'],'Returner, advancing'],['tKB','Opponent']],ball:[190,270],path:[600,150,198,268],
+ o:[["Drive it hard at the returner's feet.",2,"Attack the player still moving in."],
+    ["Drop it into the kitchen.",0,"Safe, but wastes an attackable ball."],
+    ["Lob it.",-1,"Low percentage and gives them time."],
+    ["Hit a soft, high ball.",-2,"Gives them an attackable ball."]]},
+{id:'T40a',lv:'4.0',dom:'part',t:'A poach chance',
+ sit:"Your partner is in a crosscourt dink rally. A dink drifts toward the middle and sits high enough to attack, within reach of your forehand. What do you do?",
+ pl:KITCHEN4,ball:[290,200],path:[480,150,298,198],
+ o:[["Take it with your forehand and attack; your partner shifts to cover.",2,"A good poach on an attackable middle ball."],
+    ["Leave it to your partner.",0,"Safe, but passes on a chance."],
+    ["Poach it but just dink it back.",-1,"Gives up the advantage."],
+    ["Reach for it while your partner also swings.",-2,"No communication; paddle clash."]]},
+{id:'T40b',lv:'4.0',dom:'part',t:'Opponents keep targeting your partner',
+ sit:"Your partner is weaker in hands battles, and the opponents keep speeding up at him. How do you help?",
+ pl:KITCHEN4,
+ o:[["Cover more of the middle and take any ball you can reach with your forehand.",2,"Takes balls away from him without leaving your side open."],
+    ["Tell your partner to hit harder.",-1,"Doesn't address the problem."],
+    ["Stay strictly on your side.",-1,"Leaves him exposed."],
+    ["Swap sides with him mid-rally.",-2,"Creates chaos and open court."]]},
+{id:'T40c',lv:'4.0',dom:'part',t:'After your partner\u2019s offensive lob',
+ sit:"Your partner's offensive lob clears both opponents, and they turn to chase it. What do you both do?",
+ pl:KITCHEN4,ball:[650,150],path:[290,284,640,152],
+ o:[["Both hold the kitchen line, ready to attack their defensive reply.",2,"They're on defense; take the net."],
+    ["Both back up.",-1,"Gives up the advantage the lob created."],
+    ["Stay and watch.",-1,"Passive; you need to be ready to attack."],
+    ["Run to the middle.",0,"Covers the middle but leaves sidelines open."]]},
+{id:'R40a',lv:'4.0',dom:'read',t:'One strong opponent, one weak backhand',
+ sit:"All four players are at the kitchen line. The opponent across from you is the stronger player. The opponent diagonal from you has an unreliable backhand dink. You have a neutral dink. Where does it go?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Strong all-round player'],['tKB','Weak backhand dinks']],ball:[292,146],
+ o:[["To the strong player, to test him.",-1,"Plays into the opponent least likely to make an error."],
+    ["Crosscourt to the weaker player's backhand, then wait for a ball you can attack.",2,"Pressures the weakness with the safest shot."],
+    ["Speed it up at the weaker player now.",-1,"Speeding up a neutral ball gives even a weak player a counter."],
+    ["Alternate between them so neither settles in.",0,"Not harmful, but wastes the weakness."]]},
+{id:'R40b',lv:'4.0',dom:'read',t:'Reading a speed-up before it comes',
+ sit:"You notice the opponent across from you squares his shoulders and starts his backswing early whenever he's about to speed up. He just did it. What do you do?",
+ pl:KITCHEN4,
+ o:[["Get your paddle up in ready position and expect it.",2,"Reading the cue buys you reaction time."],
+    ["Back up a step.",1,"Gains time but gives up court position."],
+    ["Ignore it and keep dinking.",-1,"Wastes the read."],
+    ["Speed up first, every time you see it.",-2,"You'd be speeding up balls that aren't attackable."]]},
+{id:'R40c',lv:'4.0',dom:'read',t:'A lefty-righty team',
+ sit:"The opponents are a lefty and a righty positioned so both forehands cover the middle. Where do you aim your dinks?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Righty'],['tKB','Lefty']],
+ o:[["Toward the sidelines, to their backhands.",2,"Avoids the middle forehands."],
+    ["Down the middle.",-2,"Feeds two forehands."],
+    ["Alternate everywhere.",0,"Not targeted."],
+    ["Lob more.",-1,"Doesn't use the read."]]},
+{id:'G40a',lv:'4.0',dom:'game',t:'Down 4\u20139 after five straight lost points',
+ sit:"You're down 4\u20139. You've lost five straight points the same way: you dink crosscourt to his forehand, and he speeds it up at your partner's backhand. What do you do?",
+ pl:KITCHEN4,path:[282,150,462,244],hit:[480,266,294,262],note:[296,132,'Your dinks','start'],note2:[296,292,'His speed-ups','start'],
+ o:[["Call a timeout. Agree to dink to his backhand, and have your partner set up to protect his backhand side.",2,"Breaks their momentum and the pattern."],
+    ["Keep going; the pattern will break on its own.",-1,"Five straight points is a pattern, not luck."],
+    ["Start speeding up first so they can't.",-2,"Adds errors and trades speed-ups into their strength."],
+    ["Lob more to break their rhythm.",0,"May disrupt them, but doesn't fix the pattern."]]},
+{id:'G40b',lv:'4.0',dom:'game',t:'Drops failing under pressure',
+ sit:"It's 5\u20135 in game three. Your third-shot drops are failing under pressure, but your drives have been winning. What do you do?",
+ pl:[['uBB','You'],['uBT','Partner'],['tKT','Opponent'],['tKB','Opponent']],
+ o:[["Lean on the drive, then drop the next ball.",2,"Uses what's working while still getting to the net."],
+    ["Keep dropping for discipline.",-1,"Ignores what the match is telling you."],
+    ["Lob the third shot.",-1,"Low percentage."],
+    ["Drive and rush the net behind it.",-1,"They block it at your feet."]]},
+{id:'G40c',lv:'4.0',dom:'game',t:'Opponents start lobbing',
+ sit:"You're up 10\u20136 and the opponents start lobbing a lot. What do you adjust?",
+ pl:KITCHEN4,ball:[200,120],path:[480,150,210,122],
+ o:[["Shade half a step back, call lobs early, and hit overheads to the middle or their feet.",2,"Prepares for the lob without giving up the net."],
+    ["Retreat to the baseline.",-1,"Gives up the net."],
+    ["Ignore it.",-1,"They'll keep winning with it."],
+    ["Chase every lob yourself.",-2,"Leaves your partner alone and the court open."]]},
+// ---------------- 4.5+ ----------------
+{id:'P45a',lv:'4.5',dom:'pos',t:'An opponent sets up an Erne',
+ sit:"The opponent across from you has moved outside the sideline next to the kitchen, setting up an Erne. What do you hit?",
+ pl:[['uKT','You'],['uKB','Partner'],[[494,58,'t'],'Opponent, Erne position'],['tKB','Opponent']],ball:[292,146],
+ o:[["Dink crosscourt, away from him.",2,"Takes away the Erne."],
+    ["Keep dinking down the line.",-2,"Feeds the Erne."],
+    ["Lob over him.",1,"He's out of position, but it's a tough shot."],
+    ["Hit hard at him.",-1,"He's set and expecting it."]]},
+{id:'P45b',lv:'4.5',dom:'pos',t:'Defending the ATP',
+ sit:"Your sharp crosscourt dink pulls the opponent diagonal from you wide off the court. How should your team shift?",
+ pl:KITCHEN4.slice(0,3).concat([[[494,346,'t'],'^Opponent, pulled wide']]),ball:[480,346],
+ o:[["Partner shades to his sideline for the ATP; you shade to the middle.",2,"Covers around-the-post and the middle."],
+    ["Both stay where you are.",-1,"Leaves the ATP open."],
+    ["You move to your sideline.",-2,"Opens the middle."],
+    ["Partner moves to the middle.",-1,"Opens the ATP lane."]]},
+{id:'P45c',lv:'4.5',dom:'pos',t:'Your partner is pulled wide on the return',
+ sit:"A wide serve pulls your partner off the court as he returns. You're at the kitchen line. Where do you go?",
+ pl:[['uKT','You'],[[96,346,'u'],'^Partner, wide'],['tBT','Server'],['tBB','Opponent']],
+ o:[["Shift toward the middle and his side to cover the gap until he recovers.",2,"Covers the court while he gets back."],
+    ["Stay put.",-1,"Leaves his side open."],
+    ["Drop back to the baseline to join him.",-1,"Gives up the net."],
+    ["Poach the third shot wherever it goes.",-2,"Over-commits."]]},
+{id:'H45a',lv:'4.5',dom:'shot',t:'Dinks down your sideline',
+ sit:"All four players are at the kitchen line. You're on the left, near the sideline. The opponent across from you has hit three tight dinks in a row down the line, close to the sideline and just over the net. What do you do on the next one?",
+ pl:[[[266,104,'u'],'You'],['uKB','Partner'],[[494,104,'t'],'Opponent'],['tKB','Opponent']],ball:[296,86],path:[480,92,304,86],note:[240,100,'Tight down-the-line dinks','end'],
+ o:[["Keep dinking straight back.",0,"Safe, but lets him keep the pattern."],
+    ["Move outside the sideline beside the kitchen without touching it, and volley the next one before it bounces (an Erne).",2,"A legal, high-percentage put-away."],
+    ["Step into the kitchen to volley it early.",-2,"A fault: you can't volley while touching the kitchen."],
+    ["Change direction with a crosscourt dink.",1,"Breaks the pattern but passes on the attack."]]},
+{id:'H45b',lv:'4.5',dom:'shot',t:'An opponent crowding the net',
+ sit:"You have a knee-high dink. The opponent across from you is crowding the net, leaning forward. What do you hit?",
+ pl:KITCHEN4,ball:[292,146],
+ o:[["An offensive lob over his backhand side.",2,"He's leaning in and can't recover backward."],
+    ["Dink at his feet.",1,"Solid, but doesn't use his position."],
+    ["Speed up at his chest.",-1,"The ball is below net height; you'd be hitting up."],
+    ["A high dink.",-2,"Gives him an attackable ball."]]},
+{id:'H45c',lv:'4.5',dom:'shot',t:'Off balance on the third shot',
+ sit:"You're on the serving team. The return is deep to your backhand, and you're off balance. What's your third shot?",
+ pl:[['uBB','You'],['uBT','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[100,310],path:[600,150,108,308],
+ o:[["A drop with extra arc and margin.",2,"Prioritize margin when off balance."],
+    ["A hard backhand drive.",-1,"Low percentage when off balance."],
+    ["A lob.",0,"Buys time, but risky."],
+    ["Push it mid-height into the middle.",-2,"Gives them an attackable ball."]]},
+{id:'T45a',lv:'4.5',dom:'part',t:'Stacking with a lefty partner',
+ sit:"You're right-handed and your partner is left-handed. You want both forehands in the middle, which means you play the left side. It's your turn to return serve from the right side. What do you do?",
+ pl:[['uBB','You'],[[266,240,'u'],'Partner (lefty)'],['tBT','Server'],['tBB','Opponent']],
+ o:[["Return from the right, then switch to the left after the return.",2,"Stacking keeps both forehands in the middle."],
+    ["Stay on the right for the point.",-1,"Puts both backhands in the middle."],
+    ["Switch sides before the serve.",-2,"Wrong receiver: a fault."],
+    ["Stay on the right but shade toward the middle.",0,"Partial fix."]]},
+{id:'T45b',lv:'4.5',dom:'part',t:'Your role during your partner\u2019s rally',
+ sit:"Your partner is in a crosscourt dink rally; you're straight across from the other opponent. What's your job?",
+ pl:KITCHEN4,path:[290,284,470,152],
+ o:[["Guard the middle and watch for a high ball to poach.",2,"Supports the rally and creates opportunities."],
+    ["Relax and wait.",-2,"Disengaged."],
+    ["Shade to your sideline.",0,"Covers the line but opens the middle."],
+    ["Back up a step.",-1,"Gives up the net."]]},
+{id:'T45c',lv:'4.5',dom:'part',t:'Your partner pulls an opponent wide',
+ sit:"Your partner's angled dink pulls an opponent off the court. What do you do?",
+ pl:KITCHEN4.slice(0,2).concat([['tKT','Opponent'],[[494,346,'t'],'^Pulled wide']]),
+ o:[["Shade toward the middle, ready to attack a reply.",2,"The reply likely comes through the middle."],
+    ["Stay put.",-1,"Misses the chance."],
+    ["Back up.",-2,"Gives up the net."],
+    ["Poach on your partner's side.",0,"Over-commits."]]},
+{id:'R45a',lv:'4.5',dom:'read',t:'A dink at net height on your backhand',
+ sit:"All four players are at the kitchen line. A dink lands in front of you on your backhand and bounces to just above net height. The opponent across from you is balanced, paddle up. What do you hit?",
+ pl:[[[266,150,'u'],'You'],['uKB','Partner'],[[494,150,'t'],'Balanced, paddle up'],['tKB','Opponent']],ball:[296,124],path:[480,146,304,126],note:[240,128,'Just above net height','end'],
+ o:[["Speed it up hard at his chest.",-1,"Barely above the net and he's ready; it gets countered."],
+    ["Dink to his feet or backhand and wait for a higher ball or for him to be off-balance.",2,"Speed-up timing depends on readiness, not just height."],
+    ["Roll a topspin dink with some pace to push him back.",1,"Pressure without a counter, but harder to execute."],
+    ["Hit a soft, high dink to the middle to reset.",-2,"Gives him an attackable ball."]]},
+{id:'R45b',lv:'4.5',dom:'read',t:'An opponent with a low paddle',
+ sit:"The opponent across from you consistently holds his paddle low after dinking. You get a ball at waist height. What do you hit?",
+ pl:KITCHEN4,ball:[292,146],
+ o:[["Speed up at his paddle-side shoulder.",2,"Hard to defend from a low paddle."],
+    ["Dink.",0,"Wastes the read."],
+    ["Lob.",-1,"Doesn't use the read."],
+    ["Hit hard at his feet.",-1,"His low paddle is already there."]]},
+{id:'R45c',lv:'4.5',dom:'read',t:'Your speed-ups keep getting countered',
+ sit:"The opponents are reading your speed-ups; every one gets countered. What do you change?",
+ pl:KITCHEN4,
+ o:[["Use the same backswing for dinks and speed-ups, and target the shoulder.",2,"Disguise beats anticipation."],
+    ["Speed up harder.",-1,"They're reading it, not out-powered."],
+    ["Stop speeding up entirely.",0,"Gives up a weapon."],
+    ["Speed up crosscourt at the far player more.",-1,"Gives him more time."]]},
+{id:'G45a',lv:'4.5',dom:'game',t:'Down 6\u201310, match point against you',
+ sit:"You're down 6\u201310, facing match point. How do you play?",
+ pl:KITCHEN4,
+ o:[["Stay patient; speed up only on clearly attackable balls.",2,"One point at a time; forcing it adds errors."],
+    ["Go for winners every ball.",-2,"Error rate climbs."],
+    ["Lob every ball.",-1,"Predictable."],
+    ["Only dink, never attack.",0,"Passive."]]},
+{id:'G45b',lv:'4.5',dom:'game',t:'A weak third shot',
+ sit:"One opponent has a weak third shot. You're returning. Where does your return go?",
+ pl:[['uBB','You'],['uKT','Partner'],['tBT','Weak third shot'],['tBB','Opponent']],
+ o:[["Deep to the weaker player.",2,"Forces him to hit the third shot."],
+    ["To the stronger player.",-1,"Wastes the read."],
+    ["Short to the weaker player.",-1,"Gives him an easier ball."],
+    ["Hard and low anywhere.",0,"Not targeted."]]},
+{id:'G45c',lv:'4.5',dom:'game',t:'They start driving every third shot',
+ sit:"In the last game, the opponents switched to driving every third shot at you while you're at the kitchen line. What do you adjust?",
+ pl:[['uKT','You'],['uKB','Partner'],['tBT','Opponent'],['tBB','Opponent']],hit:[650,150,296,146],
+ o:[["Shade half a step back on their third shot, block drives into the kitchen, then close.",2,"Gives you time to block, then regain the line."],
+    ["Stay tight to the net and swing back.",-1,"No time; errors follow."],
+    ["Retreat to the baseline.",-2,"Gives up the net."],
+    ["Counter-drive every one.",-1,"Low percentage from the kitchen."]]},
+];
+
+// Skill assessment library — doubles + singles, 10 skills per level (3.0 → 4.5)
+
+const DOUBLES_SKILLS = [
+  // ───── 3.0 ─────
+  { id: 'd30-1', level: '3.0', category: 'serve',
+    name: 'Legal serve in',
+    test: 'Hit 10 serves. Count how many land in the correct service box.',
+    criteria: '8 of 10 in' },
+  { id: 'd30-2', level: '3.0', category: 'return',
+    name: 'Return serve in play',
+    test: 'Partner serves 10. Count returns landing in court.',
+    criteria: '8 of 10 in court' },
+  { id: 'd30-3', level: '3.0', category: 'dinking',
+    name: 'Cross-court dink rally',
+    test: 'Rally cross-court dinks from kitchen line. Longest consecutive streak.',
+    criteria: '4+ consecutive in kitchen' },
+  { id: 'd30-4', level: '3.0', category: 'groundstroke',
+    name: 'Forehand groundstroke with direction',
+    test: 'Partner feeds 10. Aim each at a called side.',
+    criteria: '5 of 10 hit chosen side' },
+  { id: 'd30-5', level: '3.0', category: 'groundstroke',
+    name: 'Backhand groundstroke in court',
+    test: 'Partner feeds 10 to backhand. Count those landing in court.',
+    criteria: '5 of 10 in court' },
+  { id: 'd30-6', level: '3.0', category: 'positioning',
+    name: 'No kitchen faults',
+    test: 'Play one game. Observer tracks foot faults on volleys.',
+    criteria: '0–1 foot fault in a game' },
+  { id: 'd30-7', level: '3.0', category: 'positioning',
+    name: 'Move to kitchen after return',
+    test: 'Play receiving side. Observer tracks if you advance to NVZ after each return.',
+    criteria: 'Advances on 80%+ of returns' },
+  { id: 'd30-8', level: '3.0', category: 'volley',
+    name: 'Soft volley control',
+    test: 'Partner feeds 5 mid-pace balls at chest. Volley back without overhitting.',
+    criteria: '3 of 5 land in court' },
+  { id: 'd30-9', level: '3.0', category: 'partner',
+    name: 'Partner communication',
+    test: 'Play one game. Observer counts verbal calls (yours/mine/out/switch).',
+    criteria: '3+ calls in a game' },
+  { id: 'd30-10', level: '3.0', category: 'lob',
+    name: 'Basic lob with intent',
+    test: 'Hit 5 deliberate lobs from kitchen line over partner at NVZ.',
+    criteria: '3 of 5 land in court past NVZ' },
+
+  // ───── 3.5 ─────
+  { id: 'd35-1', level: '3.5', category: 'third-shot',
+    name: 'Third shot drop reaches kitchen',
+    test: 'Partner returns 10 serves deep. Drop third shots. Count landing in opponent kitchen.',
+    criteria: '5 of 10 in kitchen' },
+  { id: 'd35-2', level: '3.5', category: 'dinking',
+    name: 'Backhand dink in kitchen',
+    test: 'Rally 10 BH dinks. Count clean ones landing in opponent kitchen.',
+    criteria: '5 of 10 in kitchen' },
+  { id: 'd35-3', level: '3.5', category: 'dinking',
+    name: 'Extended dink rally',
+    test: 'Rally dinks cooperatively. Longest streak.',
+    criteria: '10+ consecutive' },
+  { id: 'd35-4', level: '3.5', category: 'return',
+    name: 'Deep return placement',
+    test: 'Partner serves 10. Aim each return at last 3 ft of baseline.',
+    criteria: '5 of 10 in deep strip' },
+  { id: 'd35-5', level: '3.5', category: 'reset',
+    name: 'Occasional reset of hard ball',
+    test: 'Partner attacks 10 from kitchen. Reset soft into kitchen from transition.',
+    criteria: '3 of 10 land in their kitchen' },
+  { id: 'd35-6', level: '3.5', category: 'serve',
+    name: 'Spin serve (topspin or slice)',
+    test: 'Hit 10 serves with intentional spin. Visible kick or curve on bounce.',
+    criteria: '5 of 10 with clear spin AND in' },
+  { id: 'd35-7', level: '3.5', category: 'volley',
+    name: 'Directional volley control',
+    test: 'Partner feeds 10 at chest. Volley each to called target.',
+    criteria: '5 of 10 hit chosen target' },
+  { id: 'd35-8', level: '3.5', category: 'tactics',
+    name: 'Drop vs drive decision',
+    test: 'Partner varies return quality. Call drop or drive out loud before shot.',
+    criteria: '3 of 5 correct choice' },
+  { id: 'd35-9', level: '3.5', category: 'positioning',
+    name: 'Execute basic stacking',
+    test: 'Play one game using pre-planned stack. Observer checks missed rotations.',
+    criteria: '0–1 stacking errors' },
+  { id: 'd35-10', level: '3.5', category: 'attack',
+    name: 'Speed-up on attackable ball',
+    test: 'Partner offers 5 high dinks above net. Speed each up with topspin or drive.',
+    criteria: '3 of 5 attacks stay in' },
+
+  // ───── 4.0 ─────
+  { id: 'd40-1', level: '4.0', category: 'third-shot',
+    name: 'Consistent third shot drop',
+    test: 'Hit 10 third shots after deep return. Count drops landing in kitchen.',
+    criteria: '7 of 10 in kitchen' },
+  { id: 'd40-2', level: '4.0', category: 'drive',
+    name: 'Hard topspin drive in court',
+    test: 'Hit 10 topspin drives from baseline at hip/chest. Count low (under 4 ft) and in.',
+    criteria: '5 of 10 low and in' },
+  { id: 'd40-3', level: '4.0', category: 'reset',
+    name: 'Clean reset from transition zone',
+    test: 'Partner attacks 10 from kitchen. Reset from no-man\'s-land into their kitchen.',
+    criteria: '5 of 10 soft in kitchen' },
+  { id: 'd40-4', level: '4.0', category: 'dinking',
+    name: 'Topspin roll dink',
+    test: 'Hit 10 topspin roll dinks from kitchen. Visible roll, land in kitchen.',
+    criteria: '5 of 10 land with topspin' },
+  { id: 'd40-5', level: '4.0', category: 'return',
+    name: 'Deep backhand return',
+    test: 'Partner serves to BH 10 times. Return deep.',
+    criteria: '5 of 10 in deep strip' },
+  { id: 'd40-6', level: '4.0', category: 'counter',
+    name: 'Counter a speed-up at NVZ',
+    test: 'Partner speeds up 10 at body. Counter back low or reset.',
+    criteria: '4 of 10 counters land below net in court' },
+  { id: 'd40-7', level: '4.0', category: 'tactics',
+    name: 'Target opponent weakness',
+    test: 'Play one game. Observer notes consistent targeting of weaker side.',
+    criteria: 'Targets weak side 70%+' },
+  { id: 'd40-8', level: '4.0', category: 'serve',
+    name: 'Two serve types in a game',
+    test: 'Play game using two distinct serves. Both must land 80%+.',
+    criteria: 'Both used, both 80%+' },
+  { id: 'd40-9', level: '4.0', category: 'positioning',
+    name: 'Hold the kitchen under pressure',
+    test: 'Play one game. Observer counts unforced retreats from NVZ.',
+    criteria: '2 or fewer retreats' },
+  { id: 'd40-10', level: '4.0', category: 'tactics',
+    name: 'Strategic stacking by matchup',
+    test: 'Play one game. Choose to stack based on partner FH side. Observer evaluates.',
+    criteria: 'Correct decision + execution' },
+
+  // ───── 4.5 ─────
+  { id: 'd45-1', level: '4.5', category: 'erne',
+    name: 'Legal Erne in a point',
+    test: 'Across a session, count Ernes attempted in live play that land legally for a point.',
+    criteria: '1+ successful Erne' },
+  { id: 'd45-2', level: '4.5', category: 'atp',
+    name: 'ATP execution',
+    test: 'Partner sets up 10 wide cross dinks. ATP when ball travels outside post line.',
+    criteria: '3 of 10 ATPs in court' },
+  { id: 'd45-3', level: '4.5', category: 'drive',
+    name: 'Backhand topspin drive',
+    test: 'Hit 10 BH drives with topspin from mid-court. Count low and in.',
+    criteria: '5 of 10 topspin + in' },
+  { id: 'd45-4', level: '4.5', category: 'attack',
+    name: 'Flick from low ball',
+    test: 'Partner dinks 10 at thigh height. Flick (wrist snap, topspin) into opponent court.',
+    criteria: '3 of 10 in, forcing defense' },
+  { id: 'd45-5', level: '4.5', category: 'deception',
+    name: 'Disguised drop vs drive',
+    test: 'Observer watches 10 third shots. Can they predict drop vs drive pre-contact?',
+    criteria: 'Observer correct on 4 or fewer of 10' },
+  { id: 'd45-6', level: '4.5', category: 'dinking',
+    name: 'Win a dink battle by patience',
+    test: 'Track points where dink rally goes 15+ shots. Did you win via error or attackable?',
+    criteria: 'Win 60%+ of long dink battles' },
+  { id: 'd45-7', level: '4.5', category: 'patterns',
+    name: 'Serve sets up third shot',
+    test: 'Identify planned serve-to-third pattern. Execute over 5 service points.',
+    criteria: '3 of 5 patterns play as planned' },
+  { id: 'd45-8', level: '4.5', category: 'lob',
+    name: 'Offensive lob',
+    test: 'Hit 10 offensive lobs from kitchen. Must clear opponent and land in last 5 ft.',
+    criteria: '3 of 10 land deep, force backpedal' },
+  { id: 'd45-9', level: '4.5', category: 'counter',
+    name: 'Counter from below net',
+    test: 'Partner speeds at feet 10 times. Reset or counter so point turns neutral or offensive.',
+    criteria: '4 of 10 turn point neutral/offensive' },
+  { id: 'd45-10', level: '4.5', category: 'tactics',
+    name: 'Mid-game strategy adjustment',
+    test: 'Play one game. Observer checks if you visibly change patterns after losing 2 in a row.',
+    criteria: 'Adjustment observed' },
+];
+
+
+// ---------------- 5.0 ----------------
+BANK.push(
+{id:'P50a',lv:'5.0',dom:'pos',t:'Your partner drives the third shot',
+ sit:"You're on the serving team and both of you are at the baseline. Your partner takes the return and hits a hard, low drive at the returner's backhand. What do you do as the drive leaves his paddle?",
+ pl:[['uBT','^You'],['uBB','Partner'],['tKT','Returner'],['tKB','Opponent']],path:[112,278,476,154],note:[180,330,"Partner's drive",'middle'],
+ o:[["Crash forward with the drive, paddle up, looking to volley a weak block.",2,"Timed with the drive, the crash catches the popped-up block before it bounces."],
+    ["Stay back level with your partner.",0,"Sound, but gives up the chance a good drive creates."],
+    ["Wait to see how good the drive is, then move in.",-1,"The crash only works if it starts with the drive; later, you arrive as the block lands at your feet."],
+    ["Back up behind the baseline in case they counter-drive.",-2,"Retreats from a shot that put your team on offense."]]},
+{id:'P50b',lv:'5.0',dom:'pos',t:'Your partner speeds up crosscourt',
+ sit:"All four players are at the kitchen line. Your partner speeds up a ball crosscourt at the opponent diagonal from him. Where do you set up for the counter?",
+ pl:KITCHEN4,path:[282,280,476,150],note:[300,322,"Partner's speed-up",'start'],
+ o:[["Shade toward the middle, paddle up in front, ready for a counter through the middle.",2,"Counters to a crosscourt speed-up most often come back through the middle."],
+    ["Stay square to the opponent across from you.",0,"Covers your opponent, but not the most likely counter."],
+    ["Lean toward your sideline expecting a counter down the line.",-1,"Opens the middle, the highest-percentage counter."],
+    ["Watch your partner's shot to see if it wins.",-2,"You're not ready if the ball comes back."]]},
+{id:'P50c',lv:'5.0',dom:'pos',t:'A deep dink you can reach in the air',
+ sit:"In a crosscourt dink rally, the opponent's dink is heading deep enough that you can reach it at knee height before it bounces, without leaving the kitchen line. What do you do?",
+ pl:KITCHEN4,ball:[262,150],path:[480,146,270,150],note:[110,104,'Knee height, before the bounce','start'],
+ o:[["Take it out of the air with a soft dink volley, staying at the line.",2,"Keeps your position and takes time away from the opponent."],
+    ["Let it bounce and dink normally.",0,"Fine, but a deep bounce can push you back."],
+    ["Step back to let it bounce in front of you.",-2,"Gives up the line to play a ball you could take early."],
+    ["Take it in the air and speed it up from knee height.",-1,"Attacking from below the net height usually rises and gets countered."]]},
+{id:'H50a',lv:'5.0',dom:'shot',t:'Their third-shot drop floats',
+ sit:"You're at the kitchen line on the receiving team. The server's third-shot drop floats a little high. It will reach you above net height before it bounces, and the server is moving forward. What do you hit?",
+ pl:[['uKT','You'],['uKB','Partner'],[[560,140,'t'],'^Server, moving in'],['tBB','Opponent']],ball:[292,146],path:[600,150,300,148],note:[296,118,'Above net height','start'],
+ o:[["Volley it down at the feet of the player moving in.",2,"A ball above the net is attackable, and a moving player has to hit up."],
+    ["Let it bounce and dink it back.",0,"Safe, but lets them reach the kitchen."],
+    ["Smash it hard at the opponent still at the baseline.",-1,"A deep target gives them time; the feet of the mover is the better target."],
+    ["Lob over the server.",-2,"Wastes an attackable ball and invites an overhead."]]},
+{id:'H50b',lv:'5.0',dom:'shot',t:'Chasing down a lob',
+ sit:"An opponent's offensive lob goes over your head. You get to it running back, with the ball over your shoulder and both opponents at the kitchen line. What do you hit?",
+ pl:[[[150,108,'u'],'^You, running back'],['uKB','Partner'],['tKT','Opponent'],['tKB','Opponent']],ball:[110,96],path:[480,150,118,98],
+ o:[["A high, deep defensive lob to buy time.",2,"Gives your team time to recover and pushes them back."],
+    ["A soft reset into the kitchen.",1,"Works if you're set, but hard while running back."],
+    ["A hard drive at the net players.",-1,"Off balance, it either misses or gets volleyed back."],
+    ["A between-the-legs shot.",-2,"Low percentage when a lob is available."]]},
+{id:'H50c',lv:'5.0',dom:'shot',t:'A sharp dink pulls you wide',
+ sit:"The diagonal opponent hits a sharp angled dink that pulls you outside your sideline. The ball is low and will pass outside the net post before it reaches you. What do you hit?",
+ pl:[['uKT','Partner'],[[250,346,'u'],'^You, pulled wide'],['tKT','Opponent'],['tKB','Opponent']],ball:[266,350],path:[480,280,270,344],
+ o:[["Hit around the post, low into their court (an ATP).",2,"The ball doesn't have to clear the net when it's outside the post."],
+    ["Dink it back crosscourt.",0,"Safe, but passes on a winner."],
+    ["Hit it hard over the net.",-1,"From that angle and height, it rises and gets attacked."],
+    ["Let it go; it's landing out.",-2,"An angled dink that bounces in is in; it was your ball."]]},
+{id:'T50a',lv:'5.0',dom:'part',t:'The opponents are stacking',
+ sit:"You're receiving. The opponents are stacked: the server's partner stands beside him and switches to the other side after the serve so their stronger player stays on the left. Where does your return go?",
+ pl:[['uBB','You'],['uKT','Partner'],['tBT','Server'],[[620,104,'t'],'^Partner, will switch']],
+ o:[["Deep to the player who has to switch, so he must hit and move at once.",2,"Makes the switch hard and often leaves a gap."],
+    ["Deep to the server.",0,"Standard, but ignores the stack."],
+    ["Short to the switching player.",-1,"Gives him an easy ball to approach on."],
+    ["Down the middle to cause confusion.",-1,"Stacking teams plan for the middle."]]},
+{id:'T50b',lv:'5.0',dom:'part',t:'Your partner goes for an Erne',
+ sit:"All four players are at the kitchen line. Your partner, on the left, jumps outside his sideline to Erne a dink. What do you do?",
+ pl:[[[266,58,'u'],'Partner, Erne'],['uKB','You'],['tKT','Opponent'],['tKB','Opponent']],
+ o:[["Shift toward the middle to cover the court he left.",2,"His side of the kitchen is open until he recovers."],
+    ["Stay where you are.",-1,"Leaves the middle open."],
+    ["Move behind him to back him up.",-1,"Two players on one side."],
+    ["Watch to see if his Erne wins.",-2,"You're unready if the ball comes back."]]},
+{id:'T50c',lv:'5.0',dom:'part',t:'A middle ball with two forehands',
+ sit:"You're right-handed on the left; your partner is left-handed on the right, so both forehands are in the middle. The opponent straight across from your partner hits a dink down the middle. Who takes it?",
+ pl:[['uKT','You'],['uKB','Partner (lefty)'],['tKT','Opponent'],['tKB','Hitter']],ball:[290,212],path:[480,276,298,214],
+ o:[["You, the player diagonal from the hitter, because the ball travels to you longer and at a better angle.",2,"Crosscourt player takes the middle; the player across covers the line."],
+    ["Your partner, because the hitter is across from him.",-1,"He should guard the line."],
+    ["Whoever calls it first.",0,"Communication helps, but a rule set in advance prevents hesitation."],
+    ["Both swing; one will get it.",-2,"Paddle clashes."]]},
+{id:'R50a',lv:'5.0',dom:'read',t:'The paddle face opens early',
+ sit:"In a dink rally, the opponent across from you gets low and opens his paddle face early, under the ball. What is he likely to hit, and what do you do?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Paddle face opening'],['tKB','Opponent']],ball:[470,146],
+ o:[["A lob; take a half step back with your paddle up.",2,"An open face under the ball is the setup for a lob."],
+    ["A speed-up; get your paddle up at the net.",0,"A speed-up comes from a closed face."],
+    ["A dink; stay as you are.",-1,"Misses the cue."],
+    ["Move closer to the net.",-2,"Makes a lob more effective."]]},
+{id:'R50b',lv:'5.0',dom:'read',t:'Defending the drive-and-crash',
+ sit:"Every time the server drives the third shot at you, his partner crashes forward to the kitchen. You're at the kitchen line. The drive is coming. How do you defend it?",
+ pl:[['uKT','You'],['uKB','Partner'],['tBT','Driver'],[[560,280,'t'],'Crasher, moving in']],hit:[650,150,296,146],
+ o:[["Block it soft, away from the crasher, toward the player still at the baseline.",2,"Takes the crasher out of the point and makes the driver hit up."],
+    ["Block it soft at the crasher's feet.",1,"Can work, but he's moving to exactly that ball."],
+    ["Lob over the crasher.",0,"Possible, but risky against a hard drive."],
+    ["Counter it hard at the crasher.",-1,"Hard to control against pace, and he's ready to volley."]]},
+{id:'R50c',lv:'5.0',dom:'read',t:'One opponent only resets',
+ sit:"One opponent resets everything and never attacks. His partner attacks often. How do you play them?",
+ pl:[['uKT','You'],['uKB','Partner'],['tKT','Resets everything'],['tKB','Attacks often']],
+ o:[["Speed up at the resetter's body more often and keep dinks away from the attacker.",2,"Attacks the player who won't counter and takes the ball from the one who will."],
+    ["Dink with the resetter until something opens.",0,"Safe, but patience is his strength."],
+    ["Play mostly to the attacker to test him.",-1,"Feeds the dangerous player."],
+    ["Speed up at the attacker to beat him at his game.",-2,"Hands-battles with the opponent built for them."]]},
+{id:'G50a',lv:'5.0',dom:'game',t:'Planning game three',
+ sit:"Your team won game one and lost game two. In game two the opponents won most points by attacking your partner's backhand in the middle. What's your plan for game three?",
+ pl:KITCHEN4,
+ o:[["Stack so your partner's forehand covers the middle, and take more middle balls yourself.",2,"Removes the weakness they targeted."],
+    ["Keep the same setup; game one worked.",-1,"Ignores what changed in game two."],
+    ["Tell your partner to be more aggressive.",-1,"Doesn't address where they attack."],
+    ["Poach every ball you can reach.",0,"Helps, but leaves your side open."]]},
+{id:'G50b',lv:'5.0',dom:'game',t:'Losing to a power team',
+ sit:"You lost game one to a team that drives and speeds up at everything. What's your plan for game two?",
+ pl:[['uBB','You'],['uBT','Partner'],['tKT','Opponent'],['tKB','Opponent']],
+ o:[["Keep the ball low: deep returns, soft resets, and dinks that can't be attacked.",2,"A power team needs balls it can hit hard."],
+    ["Trade drives with them.",-2,"Plays their game."],
+    ["Lob more often.",0,"Can disrupt, but not a plan."],
+    ["Keep everything the same.",-1,"It already lost a game."]]},
+{id:'G50c',lv:'5.0',dom:'game',t:'Winning dinks, losing hands battles',
+ sit:"Midway through a match, your team is winning almost every dink rally but losing almost every hands battle. What do you change?",
+ pl:KITCHEN4,
+ o:[["Stay in the dink game; attack only clearly high balls and reset their speed-ups instead of countering.",2,"Keeps the points where you're winning."],
+    ["Speed up first so you win the hands battles.",-2,"Starts more of the exchanges you're losing."],
+    ["Lob more.",0,"Doesn't address the hands battles."],
+    ["Drive more third shots.",-1,"Leads to more fast exchanges."]]}
+);
+DOUBLES_SKILLS.push(
+  { id:'d50-1', level:'5.0', category:'reset', name:'Back-to-back resets under pace',
+    test:'In transition, partner attacks you hard twice in a row, 10 sequences. Reset both into the kitchen.', criteria:'6 of 10 sequences neutralized' },
+  { id:'d50-2', level:'5.0', category:'dinking', name:'Dink volley from the line',
+    test:'Partner dinks 10 deep to your knees. Take each out of the air into their kitchen without leaving the line.', criteria:'7 of 10 in kitchen' },
+  { id:'d50-3', level:'5.0', category:'counter', name:'Counter to a called target',
+    test:'Partner speeds up 10 at your body. Counter each to a target called before the feed (feet or hip).', criteria:'6 of 10 low at target' },
+  { id:'d50-4', level:'5.0', category:'third-shot', name:'Third-shot drop against live play',
+    test:'Hit 10 third-shot drops against returners at the kitchen. Count drops the opponents can\'t attack.', criteria:'7 of 10 unattackable' },
+  { id:'d50-5', level:'5.0', category:'patterns', name:'Drive and crash',
+    test:'Five drive-and-crash patterns with a partner. Crash with the drive and finish or force a weak reply.', criteria:'3 of 5 win or force a pop-up' },
+  { id:'d50-6', level:'5.0', category:'serve', name:'Serve to a called target',
+    test:'Call a corner before each of 10 serves. Land in that corner, within 3 ft of the baseline.', criteria:'7 of 10 on target' },
+  { id:'d50-7', level:'5.0', category:'return', name:'Deep return to the backhand',
+    test:'Partner serves 10. Return each into the back third, backhand side.', criteria:'6 of 10 on target' },
+  { id:'d50-8', level:'5.0', category:'attack', name:'Convert ATPs and Ernes',
+    test:'Partner sets up 5 ATP and 5 Erne chances. Count winners or forced errors.', criteria:'5 of 10 win the point' },
+  { id:'d50-9', level:'5.0', category:'counter', name:'Win hands battles',
+    test:'In a game against 4.5+ players, observer tracks each fast exchange at the kitchen.', criteria:'Win 55%+ of exchanges' },
+  { id:'d50-10', level:'5.0', category:'tactics', name:'Low error rate in competition',
+    test:'Play a game to 11 against 4.5+ players. Observer counts your unforced errors.', criteria:'4 or fewer unforced errors' }
+);
+
+const LEVELS=['3.0','3.5','4.0','4.5','5.0'];
+const LNAME={'3.0':'3.0','3.5':'3.5','4.0':'4.0','4.5':'4.5','5.0':'5.0+'};
+const DOM={pos:'Positioning',shot:'Shot selection',part:'Partner play',read:'Reading opponents',game:'Game management'};
+const PER_LEVEL=5, PASS=0.70, NEAR=0.55, SK_LEVEL=0.80, SK_PREREQ=0.90, SK_NEAR=0.60;
+const POS={uBT:[96,140],uBB:[96,280],uTT:[196,140],uTB:[196,280],uKT:[266,140],uKB:[266,280],
+           tBT:[664,140],tBB:[664,280],tTT:[564,140],tTB:[564,280],tKT:[494,140],tKB:[494,280]};
+const byId=Object.fromEntries(BANK.map(i=>[i.id,i]));
+const SKILLS=DOUBLES_SKILLS;
+const skById=Object.fromEntries(SKILLS.map(s=>[s.id,s]));
+const MARK={'reliable':1,'inconsistent':0.5,'not-yet':0};
+
+// ---------- scoring ----------
+function itemScore(it,a){return it.o[a.best][1]-it.o[a.worst][1]}
+function scoreTest(items){
+  const lv=LEVELS.map(()=>({n:0,s:0}));const dm={};Object.keys(DOM).forEach(d=>dm[d]={n:0,s:0});
+  const blind=[];
+  items.forEach(a=>{const it=byId[a.id];if(!it||a.best==null||a.worst==null)return;const p=(itemScore(it,a)+4)/8;
+    const L=lv[LEVELS.indexOf(it.lv)];L.n++;L.s+=p;dm[it.dom].n++;dm[it.dom].s+=p;
+    if(a.conf===4&&it.o[a.best][1]<=0)blind.push({id:a.id,dom:it.dom})});
+  const pct=lv.map(x=>x.n?x.s/x.n:null);
+  const dom={};Object.keys(DOM).forEach(d=>dom[d]=dm[d].n?dm[d].s/dm[d].n:null);
+  let tier=2.5,flag=false,broken=false;
+  pct.forEach((p,i)=>{if(p==null)return;if(p>=PASS){if(broken)flag=true;else tier=parseFloat(LEVELS[i])}else broken=true});
+  const ni=LEVELS.indexOf(tier.toFixed(1))+1;
+  if(tier>=3&&ni>0&&ni<LEVELS.length&&pct[ni]!=null&&pct[ni]>=NEAR)tier+=0.25;
+  return {tier,pct,dom,blind,flag};
+}
+function levelStats(marks,lv){const items=SKILLS.filter(s=>s.level===lv);const m=items.filter(s=>marks?.[s.id]);
+  return {total:items.length,marked:m.length,pct:m.length?m.reduce((a,s)=>a+MARK[marks[s.id]],0)/items.length:0,
+    allReliable:m.length>0&&m.every(s=>marks[s.id]==='reliable')}}
+function skillsLevel(marks){
+  let lvl=2.5;
+  LEVELS.forEach((L,i)=>{const st=levelStats(marks,L);
+    if(st.marked<st.total||st.pct<SK_LEVEL)return;
+    const lowerOk=LEVELS.slice(0,i).every(M=>{const s=levelStats(marks,M);
+      return s.marked===s.total?s.pct>=SK_PREREQ:(s.marked>=3&&s.allReliable)});
+    if(lowerOk)lvl=parseFloat(L)});
+  const ni=LEVELS.indexOf(lvl.toFixed(1))+1;
+  if(lvl>=3&&ni>0&&ni<LEVELS.length){const st=levelStats(marks,LEVELS[ni]);if(st.marked===st.total&&st.pct>=SK_NEAR)lvl+=0.25}
+  return lvl;
+}
+const finalRating=(iq,ex)=>Math.min(ex,iq+0.5);
+const fmt=t=>t==null?'—':t<3?'Below 3.0':t>=5?'5.0+':(t*2)%1?t.toFixed(2):t.toFixed(1);
+const pctS=p=>p==null?'—':Math.round(p*100)+'%';
+
+// ---------- court drawing ----------
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function court(it){
+  const pl=(it.pl||[]).map(([p,label])=>{const [x,y,team]=Array.isArray(p)?p:[...POS[p],p[0]];
+    const up=label.startsWith('^');const text=up?label.slice(1):label;const col=team==='u'?'var(--us)':'var(--them)';
+    return `<circle cx="${x}" cy="${y}" r="16" fill="${col}" fill-opacity=".2" stroke="${col}" stroke-width="3"/><text x="${x}" y="${up?y-26:y+42}" text-anchor="middle" font-size="22" font-weight="${text==='You'?700:600}" fill="var(--fg)">${esc(text)}</text>`}).join('');
+  const arrow=(c,id)=>`<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
+  const path=it.path?`<line x1="${it.path[0]}" y1="${it.path[1]}" x2="${it.path[2]}" y2="${it.path[3]}" stroke="var(--muted)" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#a-${it.id})"/>`:'';
+  const hit=it.hit?`<line x1="${it.hit[0]}" y1="${it.hit[1]}" x2="${it.hit[2]}" y2="${it.hit[3]}" stroke="var(--them)" stroke-width="2.5" marker-end="url(#h-${it.id})"/>`:'';
+  const ball=it.ball?`<circle cx="${it.ball[0]}" cy="${it.ball[1]}" r="8" fill="var(--ball)" stroke="var(--fg)" stroke-width="1"/>`:'';
+  const note=n=>n?`<text x="${n[0]}" y="${n[1]}" text-anchor="${n[3]||'start'}" font-size="19" fill="var(--muted)" font-style="italic">${esc(n[2])}</text>`:'';
+  return `<svg class="court" viewBox="0 30 760 350" role="img" aria-label="Court diagram: ${esc(it.t)}"><defs>${arrow('var(--muted)','a-'+it.id)}${arrow('var(--them)','h-'+it.id)}</defs>
+   <text x="176" y="58" text-anchor="middle" font-size="19" fill="var(--muted)">YOUR SIDE</text><text x="584" y="58" text-anchor="middle" font-size="19" fill="var(--muted)">OPPONENTS</text>
+   <rect x="72" y="72" width="616" height="280" fill="var(--court-fill)" stroke="var(--court)" stroke-width="2"/><rect x="282" y="72" width="196" height="280" fill="var(--kitchen)" stroke="var(--court)" stroke-width="2"/>
+   <line x1="72" y1="212" x2="282" y2="212" stroke="var(--court)" stroke-width="2"/><line x1="478" y1="212" x2="688" y2="212" stroke="var(--court)" stroke-width="2"/>
+   <line x1="380" y1="62" x2="380" y2="362" stroke="var(--fg)" stroke-width="4"/>${path}${hit}${ball}${pl}${note(it.note)}${note(it.note2)}</svg>`;
+}
+const LEGEND=`<div class="legend"><span><i class="dot" style="border-color:var(--us);background:color-mix(in srgb,var(--us) 20%,transparent)"></i>Your team</span><span><i class="dot" style="border-color:var(--them);background:color-mix(in srgb,var(--them) 20%,transparent)"></i>Opponents</span><span><i class="dot" style="border-color:var(--fg);background:var(--ball)"></i>Ball</span><span>Shaded zone = kitchen</span><span>All players right-handed unless stated</span></div>`;
+
+// ---------- animation ----------
+// Each beat: t (ms); b = ball segment [x1,y1,h1, x2,y2,h2, apex] with heights in feet; p = {playerIndex:[x,y]} targets.
+// start = {playerIndex:[x,y]} positions at time 0 (others start at their diagram position).
+const ANIM={
+ P30a:{beats:[{t:1000,b:[664,140,2.5,170,262,0,7]},{t:450,b:[170,262,0,110,274,2.5,3.6]},{t:1100,b:[110,274,2.5,630,160,0.3,10]}]},
+ H30c:{beats:[{t:700,b:[282,140,1.5,445,148,0,4]},{t:380,b:[445,148,0,480,146,1,1.6]},{t:700,b:[480,146,1,345,150,0,4]},{t:420,b:[345,150,0,300,150,1.2,1.7]}]},
+ H35a:{beats:[{t:700,b:[282,140,1.5,445,148,0,4]},{t:380,b:[445,148,0,480,146,1,1.6]},{t:750,b:[480,146,1,335,152,0,6.5]},{t:480,b:[335,152,0,294,152,4.5,5.2]}]},
+ P35a:{beats:[{t:700,b:[282,280,1.5,450,278,0,4]},{t:350,b:[450,278,0,480,280,1,1.5]},{t:1300,b:[480,280,1,170,289,7,16],p:{1:[200,286]}}]},
+ H40a:{start:{0:[120,282],1:[120,140]},beats:[{t:1000,b:[120,282,2,480,278,3.2,7],p:{0:[196,280],1:[196,140]}},{t:420,b:[480,278,3.2,214,300,0.5,3.4]}]},
+ H40b:{beats:[{t:700,b:[282,140,1.5,450,146,0,3.6]},{t:330,b:[450,146,0,480,144,3.2,3.4]},{t:300,b:[480,144,3.2,292,136,4.6,5]}]},
+ R45a:{beats:[{t:700,b:[282,150,1.5,450,148,0,3.8]},{t:350,b:[450,148,0,480,146,1.2,1.6]},{t:700,b:[480,146,1.2,322,128,0,4.2]},{t:450,b:[322,128,0,296,124,3.3,3.6]}]},
+ H45a:{beats:(()=>{const o={t:650,b:[480,92,1,322,88,0,3.8]},b1={t:300,b:[322,88,0,290,87,1,1.5]},y={t:650,b:[290,87,1,452,92,0,3.8]},b2={t:300,b:[452,92,0,480,92,1,1.5]};
+   return [o,b1,y,b2,o,b1,y,b2,{t:520,b:[480,92,1,336,88,2.6,3.8]}]})()},
+ P50a:{start:{2:[664,140]},beats:[{t:1100,b:[664,140,2.5,140,272,0,9],p:{2:[494,140]}},{t:400,b:[140,272,0,110,278,2.5,3.2]},{t:220,b:[110,278,2.5,215,250,3.3,3.4]}]},
+ H50a:{start:{0:[96,140],2:[664,140]},beats:[{t:1000,b:[110,146,2.5,640,146,0,9],p:{0:[266,140]}},{t:300,b:[640,146,0,660,142,2,2.6]},{t:1100,b:[660,142,2,292,146,4.2,6.2],p:{2:[560,140]}}]},
+};
+// Timelines for the remaining scenarios, built from shared shot patterns.
+const B=(x1,y1,h1,x2,y2,h2,ap,t,p)=>p?{t,b:[x1,y1,h1,x2,y2,h2,ap],p}:{t,b:[x1,y1,h1,x2,y2,h2,ap]};
+const myDink=(y=140,ty=146)=>[B(282,y,1.5,445,ty,0,4,700),B(445,ty,0,480,ty,1,1.6,380)];
+const ptDink=(ty=150)=>[B(282,280,1.5,445,ty,0,4,700),B(445,ty,0,480,ty,1,1.6,380)];
+const thDink=(ty=146,y=150,end=1.2)=>[B(480,ty,1,345,y,0,4,700),B(345,y,0,300,y,end,end+0.4,420)];
+const EX=n=>{const a=[];for(let i=0;i<n;i++)a.push(...myDink(),...thDink());return a};
+const TOSS=(x,y)=>[B(x,y,2.5,x,y,3.4,4.4,800)];
+Object.assign(ANIM,{
+ // 3.0
+ P30b:{beats:[B(110,272,2,600,152,0,7,1000),B(600,152,0,640,150,2,3,400)]},
+ P30c:{beats:TOSS(664,140)},
+ H30a:{start:{2:[664,140]},beats:[B(110,272,2,600,150,0,7,1000),B(600,150,0,640,148,2.5,3,350),B(640,148,2.5,180,262,0,9,1100,{2:[494,140]}),B(180,262,0,126,266,2.4,3,400)]},
+ H30b:{beats:[B(650,150,2,170,258,0,7,1000),B(170,258,0,110,262,2.5,3.4,420)]},
+ T30a:{beats:[...ptDink(282),B(480,282,2.5,250,296,6,6.2,380)]},
+ T30b:{beats:[B(110,200,2,470,200,2.5,7,1000),B(470,200,2.5,160,210,0,6,900),B(160,210,0,110,210,2.2,3,400)]},
+ T30c:{start:{1:[266,280]},beats:[...myDink(),B(480,150,1,310,334,0,4,750,{1:[266,326]}),B(310,334,0,290,330,0.8,1.3,350)]},
+ R30a:{beats:[B(650,276,2.5,330,154,0,5,1100),B(330,154,0,294,152,2.8,3.3,400)]},
+ R30b:{beats:EX(2)},
+ R30c:{beats:[...myDink(140,140),B(480,140,3,240,126,6.5,6.8,380)]},
+ G30a:{beats:[B(110,280,2,600,140,0,7,1000),B(600,140,0,650,140,2.5,3,350),B(650,140,2.5,385,180,2.4,4,700),B(385,180,2.4,400,182,0,2.4,300)]},
+ G30b:{beats:[B(650,140,2,170,276,0,7,1000),B(170,276,0,110,280,2.5,3,350),B(110,280,2.5,600,150,0,9,1000),B(600,150,0,640,150,2,2.6,350),B(640,150,2,375,170,2.2,4,700),B(375,170,2.2,360,172,0,2.2,300)]},
+ G30c:{beats:TOSS(96,280)},
+ // 3.5
+ P35b:{beats:[B(480,276,2.5,160,276,0,9,1000),B(160,276,0,112,278,2.5,3,380),B(112,278,2.5,430,276,0,6,1100)]},
+ P35c:{start:{1:[266,280]},beats:[...myDink(),B(480,150,1.5,300,175,3,4.5,600,{1:[266,190]})]},
+ H35b:{beats:EX(2)},
+ H35c:{start:{0:[120,140],1:[120,280]},beats:[B(120,140,2,450,146,0,6,1000,{0:[196,140],1:[196,280]}),B(450,146,0,480,146,1,1.5,350),B(480,146,1,250,150,0,4,750),B(250,150,0,220,150,1.2,1.6,350)]},
+ T35b:{beats:[...ptDink(280),B(480,280,1,150,112,6,16,1300)]},
+ T35c:{start:{0:[130,140],1:[130,280]},beats:[B(130,280,2,470,270,4.5,7,1100,{0:[196,140],1:[196,280]})]},
+ R35a:{start:{3:[664,280]},beats:[B(600,276,2,340,152,0,6,1000,{3:[564,280]}),B(340,152,0,294,152,1.8,2.3,380)]},
+ R35b:{start:{3:[494,280]},beats:[B(282,140,1.5,445,250,0,4,700,{3:[494,240]}),B(445,250,0,480,240,1.8,2.2,350),B(480,240,1.8,320,150,0,4,650),B(320,150,0,294,150,1.3,1.7,350)]},
+ R35c:{start:{3:[494,280]},beats:[B(282,280,1.5,440,340,0,4,700,{3:[494,346]}),B(440,340,0,480,340,0.8,1.3,350),B(480,340,0.8,294,232,3.8,5.5,700)]},
+ G35a:{beats:[B(480,276,2.5,160,276,0,9,1000),B(160,276,0,112,278,2.5,3,380),B(112,278,2.5,375,270,2,4.2,900),B(375,270,2,365,270,0,2,300)]},
+ G35b:{beats:EX(2)},
+ G35c:{beats:TOSS(96,280)},
+ // 4.0
+ P40a:{start:{0:[110,280],1:[110,140]},beats:[B(112,280,2.5,470,276,1.5,6,1300,{0:[220,280],1:[220,140]})]},
+ P40b:{start:{3:[494,280]},beats:[B(282,280,1.5,445,330,0,4,700,{3:[494,330]}),B(445,330,0,480,330,1.2,1.6,380)]},
+ P40c:{start:{0:[266,140]},beats:[B(480,146,3.5,280,142,4,4.3,300,{0:[226,140]}),B(240,142,3.8,480,146,3.5,4.4,320),B(480,146,3.5,246,146,2.6,3.8,400)]},
+ H40c:{start:{0:[96,280],2:[664,140]},beats:[B(650,140,2.5,230,270,0,6,900,{2:[600,140]}),B(230,270,0,190,270,4,4.5,420,{0:[170,280],2:[540,140]})]},
+ T40a:{beats:[...ptDink(150),B(480,150,1,290,200,3.6,4.6,750)]},
+ T40b:{beats:[...myDink(),B(480,146,3,282,272,3.5,4,300),B(282,272,3.5,480,276,3,4,500),B(480,276,3,284,284,3.2,3.6,300)]},
+ T40c:{beats:[...ptDink(284),B(282,284,1.5,650,150,3,14,1300,{2:[600,150],3:[560,270]})]},
+ R40a:{beats:[...myDink(),B(480,146,1,330,146,0,4,700),B(330,146,0,292,146,1.4,1.8,420)]},
+ R40b:{beats:[...EX(1),...myDink(),B(480,146,1,480,146,2.2,2.4,300)]},
+ R40c:{beats:EX(2)},
+ G40a:{beats:[B(282,150,1.5,445,244,0,4,700),B(445,244,0,480,262,2.8,3.2,380),B(480,262,2.8,294,262,3.5,3.8,300),B(294,262,3.5,300,270,0,3.6,250),B(282,150,1.5,445,244,0,4,700),B(445,244,0,480,262,2.8,3.2,380),B(480,262,2.8,294,262,3.5,3.8,300)]},
+ G40b:{beats:[B(480,276,2.5,160,276,0,9,1000),B(160,276,0,112,278,2.5,3,380),B(112,278,2.5,375,270,2,4.2,900),B(375,270,2,365,270,0,2,300)]},
+ G40c:{beats:[...myDink(140,150),B(480,150,1,200,122,9,15,1200)]},
+ // 4.5
+ P45a:{start:{2:[494,140]},beats:[B(282,140,1.5,445,100,0,4,700),B(445,100,0,480,96,1,1.5,350),B(480,96,1,330,146,0,4,700,{2:[494,58]}),B(330,146,0,292,146,1.3,1.7,350)]},
+ P45b:{start:{3:[494,280]},beats:[B(282,140,1.5,445,340,0,4,750,{3:[494,346]}),B(445,340,0,480,346,0.8,1.2,350)]},
+ P45c:{start:{1:[96,280]},beats:[B(650,140,2,180,336,0,7,1000),B(180,336,0,100,348,2,2.8,420,{1:[96,346]})]},
+ H45b:{beats:[...myDink(),B(480,146,1,330,146,0,4,700,{2:[468,140]}),B(330,146,0,292,146,1.8,2.2,420)]},
+ H45c:{beats:[B(640,150,2.5,150,310,0,8,1100),B(150,310,0,100,316,1.8,2.6,420,{0:[90,300]})]},
+ T45a:{beats:TOSS(664,140)},
+ T45b:{beats:[...ptDink(152),B(480,150,1,330,280,0,4,700),B(330,280,0,290,282,1.2,1.6,380),B(282,282,1.2,445,152,0,4,700)]},
+ T45c:{start:{3:[494,280]},beats:[B(282,280,1.5,445,342,0,4,750,{3:[494,346]}),B(445,342,0,480,346,0.8,1.2,350)]},
+ R45b:{beats:[...myDink(),B(480,146,1,320,146,0,4.4,700),B(320,146,0,292,146,3.2,3.6,450)]},
+ R45c:{beats:[...EX(1),B(282,150,3.2,478,146,3.8,4,300),B(480,146,3.8,290,140,3.4,4,300)]},
+ G45a:{beats:EX(2)},
+ G45b:{beats:[B(650,140,2,170,272,0,7,1000),B(170,272,0,110,276,2.5,3.2,400)]},
+ G45c:{start:{0:[96,140]},beats:[B(110,146,2.5,620,150,0,9,1000,{0:[266,140]}),B(620,150,0,650,150,2.5,3,350),B(650,150,2.5,296,146,3.4,4,450)]},
+ // 5.0
+ P50b:{beats:[...ptDink(150),B(480,150,1,300,276,3.6,4.6,700),B(282,280,3.6,476,150,3.5,4,300)]},
+ P50c:{beats:[...myDink(),B(480,146,1,262,150,1.6,4.2,800)]},
+ H50b:{start:{0:[266,140]},beats:[...myDink(),B(480,150,1,110,96,3,16,1400,{0:[150,108]})]},
+ H50c:{start:{1:[266,280]},beats:[...ptDink(280),B(480,280,1,300,348,0,3.5,700,{1:[250,346]}),B(300,348,0,266,362,0.8,1.4,350)]},
+ T50a:{beats:[B(650,140,2,170,272,0,7,1000,{3:[640,250]}),B(170,272,0,110,276,2.5,3.2,400)]},
+ T50b:{start:{0:[266,140]},beats:[B(480,100,1,290,62,1.8,4,750,{0:[266,58]})]},
+ T35a:{beats:[...ptDink(270),B(480,270,1,330,214,0,4,700),B(330,214,0,290,213,1.4,1.8,380)]},
+ T50c:{beats:[...ptDink(276),B(480,276,1,330,213,0,4,700),B(330,213,0,290,212,1.4,1.8,380)]},
+ R50a:{beats:[B(282,140,1.5,440,146,0,4,700),B(440,146,0,470,146,0.8,1.2,380)]},
+ R50b:{start:{3:[664,280]},beats:[B(300,146,3,630,150,0,9,1000),B(630,150,0,650,150,2.5,3,350),B(650,150,2.5,300,146,3.3,3.8,450,{3:[560,280]})]},
+ R50c:{beats:EX(2)},
+ G50a:{beats:EX(2)},
+ G50b:{beats:[B(650,150,2,170,272,0,7,1000),B(170,272,0,110,276,2.5,3.2,400),B(110,276,2.5,620,150,0,9,1100)]},
+ G50c:{beats:EX(2)},
+});
+
+Object.entries(ANIM).forEach(([id,a])=>{if(byId[id])byId[id].anim=a});
+const REDUCE=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}})();
+const HS=6.2, GY=104; // side-view scale: px per foot, ground line
+function plList(it){return (it.pl||[]).map(([p,label])=>{const [x,y,team]=Array.isArray(p)?p:[...POS[p],p[0]];const up=label.startsWith('^');return {x,y,team,up,text:up?label.slice(1):label}})}
+function courtBase(it){return `<text x="176" y="58" text-anchor="middle" font-size="19" fill="var(--muted)">YOUR SIDE</text><text x="584" y="58" text-anchor="middle" font-size="19" fill="var(--muted)">OPPONENTS</text>
+ <rect x="72" y="72" width="616" height="280" fill="var(--court-fill)" stroke="var(--court)" stroke-width="2"/><rect x="282" y="72" width="196" height="280" fill="var(--kitchen)" stroke="var(--court)" stroke-width="2"/>
+ <line x1="72" y1="212" x2="282" y2="212" stroke="var(--court)" stroke-width="2"/><line x1="478" y1="212" x2="688" y2="212" stroke="var(--court)" stroke-width="2"/>
+ <line x1="380" y1="62" x2="380" y2="362" stroke="var(--fg)" stroke-width="4"/>`}
+function animBlock(it){
+  const pl=plList(it);
+  const arrow=(c,id)=>`<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
+  const note=n=>n?`<text x="${n[0]}" y="${n[1]}" text-anchor="${n[3]||'start'}" font-size="19" fill="var(--muted)" font-style="italic">${esc(n[2])}</text>`:'';
+  const ov=(it.path?`<line x1="${it.path[0]}" y1="${it.path[1]}" x2="${it.path[2]}" y2="${it.path[3]}" stroke="var(--muted)" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#aa-${it.id})"/>`:'')
+    +(it.hit?`<line x1="${it.hit[0]}" y1="${it.hit[1]}" x2="${it.hit[2]}" y2="${it.hit[3]}" stroke="var(--them)" stroke-width="2.5" marker-end="url(#ah-${it.id})"/>`:'')+note(it.note)+note(it.note2);
+  return `<div class="anim" data-id="${it.id}">
+  <svg class="court" viewBox="0 30 760 350" role="img" aria-label="Animated court diagram: ${esc(it.t)}"><defs>${arrow('var(--muted)','aa-'+it.id)}${arrow('var(--them)','ah-'+it.id)}</defs>${courtBase(it)}
+   <g class="ov" style="opacity:0;transition:opacity .3s">${ov}</g>
+   ${pl.map((p,i)=>{const col=p.team==='u'?'var(--us)':'var(--them)';return `<g class="pl" data-i="${i}" transform="translate(${p.x} ${p.y})"><circle r="16" fill="${col}" fill-opacity=".2" stroke="${col}" stroke-width="3"/><text y="${p.up?-26:42}" text-anchor="middle" font-size="22" font-weight="${p.text==='You'?700:600}" fill="var(--fg)">${esc(p.text)}</text></g>`}).join('')}
+   <ellipse class="shadow" rx="7" ry="3.5" fill="var(--fg)" opacity=".28"/><circle class="ball" r="8" fill="var(--ball)" stroke="var(--fg)" stroke-width="1"/></svg>
+  <svg class="strip" viewBox="0 0 760 132" role="img" aria-label="Side view of ball height compared with the net">
+   <line x1="72" y1="${GY}" x2="688" y2="${GY}" stroke="var(--court)" stroke-width="2"/>
+   <line x1="282" y1="${GY-4}" x2="282" y2="${GY+4}" stroke="var(--court)" stroke-width="2"/><line x1="478" y1="${GY-4}" x2="478" y2="${GY+4}" stroke="var(--court)" stroke-width="2"/>
+   <line x1="72" y1="${GY-3*HS}" x2="688" y2="${GY-3*HS}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 5"/>
+   <line x1="380" y1="${GY}" x2="380" y2="${GY-3*HS}" stroke="var(--fg)" stroke-width="5"/>
+   <text x="694" y="${GY-3*HS+5}" font-size="21" fill="var(--muted)">net</text>
+   <text x="72" y="${GY+24}" font-size="21" fill="var(--muted)">your baseline</text><text x="688" y="${GY+24}" text-anchor="end" font-size="21" fill="var(--muted)">their baseline</text>
+   <circle class="sball" r="9" fill="var(--ball)" stroke="var(--fg)" stroke-width="1"/></svg>
+  <div class="meta"><span class="label">Side view: ball height vs. net</span><button class="btn ghost sm replay" type="button">Replay</button></div></div>`;
+}
+function initAnim(el,it,{autoplay=false,onDone}={}){
+  const A=it.anim,pl=plList(it),beats=A.beats;
+  const st=[{pos:pl.map((p,i)=>A.start?.[i]||[p.x,p.y]),ball:beats[0].b.slice(0,3)}];
+  beats.forEach((b,k)=>{const pos=st[k].pos.map((p,i)=>b.p?.[i]||p);st.push({pos,ball:b.b?b.b.slice(3,6):st[k].ball})});
+  const total=beats.reduce((a,b)=>a+b.t,0);
+  const gs=[...el.querySelectorAll('.pl')],ball=el.querySelector('.ball'),sh=el.querySelector('.shadow'),sb=el.querySelector('.sball'),ov=el.querySelector('.ov');
+  const ease=u=>u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+  function frame(t){let k=0,acc=0;while(k<beats.length-1&&acc+beats[k].t<t){acc+=beats[k].t;k++}
+    const u=Math.min(1,Math.max(0,(t-acc)/beats[k].t)),B=beats[k];
+    gs.forEach((g,i)=>{const a=st[k].pos[i],b=st[k+1].pos[i],e=ease(u);g.setAttribute('transform',`translate(${a[0]+(b[0]-a[0])*e} ${a[1]+(b[1]-a[1])*e})`)});
+    let x,y,h;if(B.b){const [x1,y1,h1,x2,y2,h2,ap]=B.b;x=x1+(x2-x1)*u;y=y1+(y2-y1)*u;const c=2*ap-(h1+h2)/2;h=Math.max(0,(1-u)*(1-u)*h1+2*u*(1-u)*c+u*u*h2)}else{[x,y,h]=st[k+1].ball}
+    sh.setAttribute('cx',x);sh.setAttribute('cy',y);ball.setAttribute('cx',x);ball.setAttribute('cy',y-h*2.2);ball.setAttribute('r',7+h*0.18);
+    sb.setAttribute('cx',x);sb.setAttribute('cy',Math.max(10,GY-h*HS));}
+  let raf=0,done=false;
+  function finish(){frame(total);ov.style.opacity=1;if(!done){done=true;onDone&&onDone()}}
+  function run(){cancelAnimationFrame(raf);ov.style.opacity=0;const t0=performance.now();
+    const loop=now=>{if(!el.isConnected)return;const e=now-t0;if(e>=total)return finish();frame(e);raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop)}
+  el.querySelector('.replay').addEventListener('click',()=>REDUCE?finish():run());
+  if(autoplay&&!REDUCE)run();else finish();
+}
+const scene=it=>it.anim?animBlock(it):court(it);
+function initScenes(root,opts){root.querySelectorAll('.anim').forEach(el=>initAnim(el,byId[el.dataset.id],opts))}
+
+// ---------- state ----------
+const S={view:'players',db:null,uid:null,ready:false,players:[],settings:{org:'',assessor:''},cur:null,bankLv:'all',downloads:null,unsub:null};
+const V=document.getElementById('view');
+const col=()=>S.db.collection('data/users/'+S.uid);
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200)}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawItems(){const ids=[];
+  LEVELS.forEach(l=>{const pool=shuffle(BANK.filter(i=>i.lv===l));shuffle(Object.keys(DOM)).forEach(d=>{const x=pool.find(i=>i.dom===d);if(x)ids.push(x.id)})});
+  return shuffle(ids).map(id=>({id,order:shuffle([0,1,2,3]),best:null,worst:null,conf:null}));}
+function player(){return S.players.find(p=>p._id===S.cur)}
+async function savePlayer(p,fields,keepLocal){if(!keepLocal)Object.assign(p,fields);
+  try{await col().doc(p._id).update(fields);return true}catch(e){toast('Couldn\'t save: '+(e.message||e.code));return false}}
+function setView(v,id){S.view=v;if(id!==undefined)S.cur=id;
+  document.body.classList.toggle('kiosk',v==='test');
+  document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.view===v||(v==='player'&&b.dataset.view==='players'))));
+  render();window.scrollTo(0,0)}
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.view)});
+
+function render(){
+  if(!S.ready&&['players','player','test','skills','report'].includes(S.view))return renderGate();
+  ({players:renderPlayers,player:renderPlayer,test:renderTest,skills:renderSkills,report:renderReport,bank:renderBank,skillsref:renderSkillsRef,settings:renderSettings})[S.view]();
+}
+function renderGate(){
+  V.innerHTML=`<section class="panel"><h2>Assess players without self-rating</h2>
+  <p>Court IQ rates a player in two parts: a supervised scenario test of 25 game situations, and an observed on-court skills check. You get a rating and a report to send the player.</p>
+  <p class="muted" id="gatemsg">Loading your player records…</p></section>`;
+}
+
+// ---------- players ----------
+function status(p){if(p.final!=null)return['Complete','good'];if(p.iq)return['Skills check next','warn'];if(p.test?.items)return['Test in progress','warn'];return['New','mut']}
+function renderPlayers(){
+  const list=S.players.slice().sort((a,b)=>(b.created||'').localeCompare(a.created||''));
+  V.innerHTML=`<section class="panel">
+    <h2>Add a player</h2>
+    <div class="row"><label class="grow" for="np-name">Name<input id="np-name" autocomplete="off"></label>
+    <label class="grow" for="np-email">Email (for the report)<input id="np-email" type="email" autocomplete="off"></label></div>
+    <div class="row"><label class="grow" for="np-dupr">DUPR or club rating, if any<input id="np-dupr" inputmode="decimal"></label>
+    <label class="grow" for="np-event">Event or league<input id="np-event" value="${esc(S.settings.event||'')}"></label></div>
+    <div><button class="btn" id="np-add" disabled>Add player</button></div></section>
+  <section class="panel"><div class="meta"><h2>Players</h2>${list.length&&S.downloads?'<button class="btn ghost sm" id="csv">Export CSV</button>':''}</div>
+  ${list.length?`<div class="tablewrap"><table><thead><tr><th>Player</th><th>Added</th><th>Court IQ</th><th>Skills</th><th>Rating</th><th>Status</th></tr></thead><tbody>
+  ${list.map(p=>{const [t,c]=status(p);return `<tr data-id="${esc(p._id)}"><td><b>${esc(p.name)}</b></td><td>${(p.created||'').slice(0,10)}</td><td>${p.iq?fmt(p.iq.tier):'—'}</td><td>${p.exec!=null?fmt(p.exec):'—'}</td><td><b>${p.final!=null?fmt(p.final):'—'}</b></td><td><span class="pill ${c}">${t}</span>${p.iq?.flag?' <span class="pill warn">Review</span>':''}</td></tr>`}).join('')}
+  </tbody></table></div>`:'<p class="muted">No players yet. Add one above to start an assessment.</p>'}</section>`;
+  const n=document.getElementById('np-name'),b=document.getElementById('np-add');
+  n.addEventListener('input',()=>b.disabled=!n.value.trim());
+  b.addEventListener('click',async()=>{b.disabled=true;
+    const data={type:'player',name:n.value.trim(),email:document.getElementById('np-email').value.trim(),dupr:document.getElementById('np-dupr').value.trim(),event:document.getElementById('np-event').value.trim(),created:new Date().toISOString()};
+    try{const ref=await col().add(data);S.players.push({...data,_id:ref.id});setView('player',ref.id)}catch(e){toast('Couldn\'t add: '+(e.message||e.code));b.disabled=false}});
+  V.querySelectorAll('tbody tr').forEach(tr=>tr.addEventListener('click',()=>setView('player',tr.dataset.id)));
+  document.getElementById('csv')?.addEventListener('click',exportCSV);
+}
+async function exportCSV(){
+  const head=['name','email','event','added','dupr','court_iq',...LEVELS.map(l=>'iq_'+l),...Object.keys(DOM).map(d=>'dom_'+d),'blind_spots','review_flag','skills_level','final_rating'];
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const lines=[head.join(',')].concat(S.players.map(p=>[p.name,p.email,p.event,(p.created||'').slice(0,10),p.dupr,p.iq?fmt(p.iq.tier):'',...LEVELS.map((_,i)=>p.iq?.pct?.[i]!=null?Math.round(p.iq.pct[i]*100):''),...Object.keys(DOM).map(d=>p.iq?.dom?.[d]!=null?Math.round(p.iq.dom[d]*100):''),p.iq?.blind?.length??'',p.iq?.flag?'yes':'',p.exec!=null?fmt(p.exec):'',p.final!=null?fmt(p.final):''].map(q).join(',')));
+  try{await S.downloads.save({filename:'court-iq-players.csv',data:new Blob([lines.join('\n')],{type:'text/csv'})})}catch(e){}
+}
+
+// ---------- player hub ----------
+function bandsHTML(pct){return `<div class="bands">${LEVELS.map((l,i)=>{const p=pct?.[i];const c=p==null?'var(--line)':p>=PASS?'var(--good)':'var(--bad)';
+  return `<div class="band"><span class="label">${LNAME[l]}</span><span class="bar th"><i style="width:${p==null?0:Math.round(p*100)}%;background:${c}"></i></span><span>${pctS(p)}</span></div>`}).join('')}</div>`}
+function domHTML(dom){return `<div class="bands">${Object.keys(DOM).map(d=>{const p=dom?.[d];const c=p==null?'var(--line)':p>=.75?'var(--good)':p>=.55?'var(--warn)':'var(--bad)';
+  return `<div class="band"><span>${DOM[d]}</span><span class="bar"><i style="width:${p==null?0:Math.round(p*100)}%;background:${c}"></i></span><span>${pctS(p)}</span></div>`}).join('')}</div>`}
+function renderPlayer(){
+  const p=player();if(!p)return setView('players');
+  const done1=!!p.iq,done2=p.exec!=null;
+  V.innerHTML=`<section class="panel">
+    <div class="meta"><button class="linkbtn" id="back">← All players</button><span class="label">${esc(p.event||'')}</span></div>
+    <h2>${esc(p.name)}</h2>
+    <p class="muted">${[p.email,p.dupr?'Prior rating '+p.dupr:''].filter(Boolean).map(esc).join(' · ')||'No email on file'}</p>
+    <div class="steps">
+      <div class="step ${done1?'done':''}"><span class="label">Step 1</span><b>Scenario test</b><span class="muted">${done1?'Court IQ '+fmt(p.iq.tier):p.test?.items?'In progress':'Not started'}</span></div>
+      <div class="step ${done2?'done':''}"><span class="label">Step 2</span><b>Skills check</b><span class="muted">${done2?'Skills '+fmt(p.exec):'Not started'}</span></div>
+      <div class="step ${p.final!=null?'done':''}"><span class="label">Step 3</span><b>Report</b><span class="muted">${p.final!=null?'Rating '+fmt(p.final):'After steps 1 and 2'}</span></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="go-test">${done1?'Retake scenario test':p.test?.items?'Resume scenario test':'Start scenario test'}</button>
+      <button class="btn ${done1?'':'ghost'}" id="go-skills" ${done1?'':'disabled'}>${done2?'Edit skills check':'Start skills check'}</button>
+      <button class="btn ${p.final!=null?'':'ghost'}" id="go-report" ${p.final!=null?'':'disabled'}>Report</button>
+    </div>
+    <p class="muted" style="font-size:.9rem">Run the scenario test on this device and hand it to the player. They won't see their score or the answer keys.</p>
+  </section>
+  ${done1?`<section class="panel"><div class="meta"><h3>Court IQ</h3><span class="big"><b style="font-size:2.4rem">${fmt(p.iq.tier)}</b></span></div>
+    ${p.iq.flag?'<p class="notice">Passed a higher level while missing a lower one. Possible guessing; consider a retake.</p>':''}
+    <span class="label">By level (70% to pass)</span>${bandsHTML(p.iq.pct)}
+    <span class="label">By domain</span>${domHTML(p.iq.dom)}
+    <p><b>Blind spots:</b> ${p.iq.blind.length} item${p.iq.blind.length===1?'':'s'} answered "certain" with a poor best pick${p.iq.blind.length?': '+p.iq.blind.map(b=>esc(byId[b.id]?.t)).join('; '):''}.</p>
+    <details><summary>Item-by-item answers</summary><div style="display:grid;gap:8px;margin-top:10px">
+    ${p.test.items.map(a=>{const it=byId[a.id];if(!it||a.best==null)return'';const s=itemScore(it,a);
+      return `<div class="keyrow"><span class="k ${s>0?'pos':s<0?'neg':''}">${s>0?'+':''}${s}</span><span><b>${LNAME[it.lv]} · ${esc(it.t)}</b><br><span class="muted">Best: ${esc(it.o[a.best][0])} (${it.o[a.best][1]}) · Worst: ${esc(it.o[a.worst][0])} (${it.o[a.worst][1]}) · Confidence ${a.conf}/4</span></span></div>`}).join('')}
+    </div></details></section>`:''}
+  <section class="panel"><label for="pnotes">Assessor notes (not in the report)<textarea id="pnotes">${esc(p.notes||'')}</textarea></label>
+    <details><summary>Delete player</summary><p style="margin:8px 0">Removes this player and all results. This can't be undone.</p><button class="btn danger sm" id="del">Delete ${esc(p.name)}</button></details></section>`;
+  document.getElementById('back').onclick=()=>setView('players');
+  document.getElementById('go-test').onclick=async()=>{
+    if(!p.test?.items||done1){await savePlayer(p,{test:{items:drawItems(),i:0}})}
+    setView('test')};
+  document.getElementById('go-skills').onclick=()=>setView('skills');
+  document.getElementById('go-report').onclick=()=>setView('report');
+  const nt=document.getElementById('pnotes');nt.addEventListener('change',()=>savePlayer(p,{notes:nt.value}));
+  document.getElementById('del').onclick=async()=>{try{await col().doc(p._id).delete();S.players=S.players.filter(x=>x!==p);setView('players')}catch(e){toast('Couldn\'t delete')}};
+}
+
+// ---------- scenario test (kiosk) ----------
+function renderTest(){
+  const p=player();if(!p?.test?.items)return setView('players');
+  const T=p.test;
+  if(T.i==null||T.i<0)T.i=0;
+  if(!T.started){
+    V.innerHTML=`<section class="panel"><span class="label">Scenario test · ${esc(p.name)}</span>
+      <h2>What would you do?</h2>
+      <p>You'll see 25 game situations on a court diagram. For each one, pick the <b>best</b> and the <b>worst</b> of four options, then say how sure you are of your best pick.</p>
+      <p>There's no time limit. Answer the way you would actually play it, not the way you think you're supposed to.</p>
+      <p class="muted">Some situations play as a short animation first. The strip under the court shows how high the ball is compared with the net. Options appear when the play stops; you can replay it.</p>
+      ${scene(byId.P30a)}${LEGEND}
+      <div><button class="btn" id="begin">Begin</button></div>
+      <div><button class="linkbtn" id="exit">Organizer: exit test</button></div></section>`;
+    initScenes(V,{autoplay:true});
+    document.getElementById('begin').onclick=()=>{T.started=true;renderTest()};
+    document.getElementById('exit').onclick=()=>setView('player');
+    return;
+  }
+  if(T.finished){
+    V.innerHTML=`<section class="panel"><h2>All done</h2><p>Thanks, ${esc(p.name.split(' ')[0])}. Please hand the device back to the organizer.</p>
+    <div><button class="btn ghost" id="exit">Organizer: continue</button></div></section>`;
+    document.getElementById('exit').onclick=()=>setView('player');return;
+  }
+  const a=T.items[T.i],it=byId[a.id];const L='ABCD';
+  V.innerHTML=`<section class="panel">
+    <div class="meta"><span class="label">Scenario ${T.i+1} of ${T.items.length}</span><span class="label">${esc(it.t)}</span></div>
+    <div class="progress"><i style="width:${T.i/T.items.length*100}%"></i></div>
+    ${scene(it)}${LEGEND}<p>${esc(it.sit)}</p>
+    <div id="answer" class="opts" style="gap:14px" ${it.anim&&!a.seen?'hidden':''}><div class="opts">${a.order.map((o,k)=>`<div class="opt ${a.best===o?'best':''} ${a.worst===o?'worst':''}"><span class="letter">${L[k]}</span><span>${esc(it.o[o][0])}</span>
+      <span class="picks"><button class="chip b" data-o="${o}" data-t="best" aria-pressed="${a.best===o}">Best</button><button class="chip w" data-o="${o}" data-t="worst" aria-pressed="${a.worst===o}">Worst</button></span></div>`).join('')}</div>
+    <div class="label">How sure are you of your best pick?</div>
+    <div class="conf">${['Guessing','Unsure','Fairly sure','Certain'].map((t,k)=>`<button data-c="${k+1}" aria-pressed="${a.conf===k+1}">${t}</button>`).join('')}</div></div>
+    <div class="meta"><button class="btn ghost" id="prev" ${T.i?'':'disabled'}>Back</button>
+    <button class="btn" id="next" ${a.best!=null&&a.worst!=null&&a.conf?'':'disabled'}>${T.i===T.items.length-1?'Finish':'Next'}</button></div></section>`;
+  if(it.anim)initAnim(V.querySelector('.anim'),it,{autoplay:!a.seen,onDone:()=>{a.seen=true;const an=document.getElementById('answer');if(an)an.hidden=false}});
+  V.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const o=+b.dataset.o,t=b.dataset.t;a[t]=a[t]===o?null:o;const ot=t==='best'?'worst':'best';if(a[ot]===o)a[ot]=null;renderTest()});
+  V.querySelectorAll('.conf button').forEach(b=>b.onclick=()=>{a.conf=+b.dataset.c;renderTest()});
+  document.getElementById('prev').onclick=()=>{T.i--;renderTest();window.scrollTo(0,0)};
+  document.getElementById('next').onclick=async()=>{
+    const items=T.items.map(({id,order,best,worst,conf})=>({id,order,best,worst,conf}));
+    if(T.i<T.items.length-1){T.i++;savePlayer(p,{test:{items,i:T.i}},true);renderTest();window.scrollTo(0,0)}
+    else{const iq=scoreTest(items);iq.at=new Date().toISOString();
+      const f={test:{items,i:T.i},iq};if(p.exec!=null)f.final=finalRating(iq.tier,p.exec);
+      await savePlayer(p,f,true);p.iq=iq;if(f.final!=null)p.final=f.final;T.finished=true;renderTest();window.scrollTo(0,0)}};
+}
+
+// ---------- skills check ----------
+function recommendedLevels(p){const t=Math.max(3,Math.floor((p.iq?.tier??3)*2)/2);const i=Math.max(0,LEVELS.indexOf(t.toFixed(1)));return LEVELS.slice(i,i+2)}
+function renderSkills(){
+  const p=player();if(!p)return setView('players');
+  const marks=p.marks||{};const rec=recommendedLevels(p);
+  const lvl=skillsLevel(marks);
+  V.innerHTML=`<section class="panel">
+    <div class="meta"><button class="linkbtn" id="back">← ${esc(p.name)}</button><span class="label">Court IQ ${fmt(p.iq?.tier)}</span></div>
+    <h2>Skills check</h2>
+    <p>Observe each skill and mark it. Test every item at <b>${rec.map(l=>LNAME[l]).join(' and ')}</b>. For each level below that, spot-check at least 3 items; all must be Reliable for the level to count.</p>
+    <div class="stats"><div class="stat"><span class="label">Skills level</span><b>${fmt(lvl)}</b></div>
+      <div class="stat"><span class="label">Rating so far</span><b>${p.iq?fmt(finalRating(p.iq.tier,lvl)):'—'}</b></div></div>
+    <p class="muted" style="font-size:.9rem">A level counts when all 10 items are marked and score 80%+ (Reliable = 1, Inconsistent = ½). Fully tested lower levels need 90%+.</p>
+  </section>
+  ${LEVELS.map(L=>{const st=levelStats(marks,L);const open=rec.includes(L)||st.marked>0;
+    return `<details class="lvl" ${open?'open':''}><summary><span>${LNAME[L]} ${rec.includes(L)?'<span class="pill good">Test all</span>':'<span class="pill mut">Spot-check</span>'}</span><span class="muted">${st.marked}/${st.total} marked · ${pctS(st.pct)}</span></summary>
+    ${SKILLS.filter(s=>s.level===L).map(s=>{const m=marks[s.id];return `<div class="skill"><span class="name">${esc(s.name)}</span><span>${esc(s.test)}</span><span class="crit">Pass: ${esc(s.criteria)}</span>
+      <div class="row">${[['not-yet','Not yet','no'],['inconsistent','Inconsistent','inc'],['reliable','Reliable','yes']].map(([v,t,c])=>`<button class="chip ${c}" data-s="${s.id}" data-v="${v}" aria-pressed="${m===v}">${t}</button>`).join('')}</div></div>`}).join('')}</details>`}).join('')}
+  <section class="panel"><div class="row"><button class="btn" id="finish">Save skills check</button><span class="muted" id="msg"></span></div></section>`;
+  document.getElementById('back').onclick=()=>setView('player');
+  V.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{const id=b.dataset.s,v=b.dataset.v;const m={...(p.marks||{})};
+    if(m[id]===v)delete m[id];else m[id]=v;p.marks=m;
+    const y=window.scrollY;renderSkills();window.scrollTo(0,y);
+    clearTimeout(renderSkills.t);renderSkills.t=setTimeout(()=>savePlayer(p,{marks:p.marks}),600)});
+  document.getElementById('finish').onclick=async()=>{const ex=skillsLevel(p.marks||{});
+    const f={marks:p.marks||{},exec:ex,skillsAt:new Date().toISOString()};if(p.iq)f.final=finalRating(p.iq.tier,ex);
+    if(await savePlayer(p,f))setView('player')};
+}
+
+// ---------- report ----------
+function strengths(p){const d=Object.keys(DOM).filter(k=>p.iq?.dom?.[k]!=null).sort((a,b)=>p.iq.dom[b]-p.iq.dom[a]);return {top:d.slice(0,2),low:d.slice(-2).reverse()}}
+function workOn(p){
+  const next=LEVELS.find(L=>parseFloat(L)>p.final)||null;
+  const target=SKILLS.filter(s=>(p.marks?.[s.id]&&p.marks[s.id]!=='reliable')&&(parseFloat(s.level)<=(next?parseFloat(next):4.5)));
+  return {next,items:target.sort((a,b)=>a.level.localeCompare(b.level)).slice(0,6)};
+}
+const DOM_TIP={pos:'Move with your partner as a unit and split-step as the opponent makes contact.',
+  shot:'Match the shot to the ball: reset low balls, attack only balls above net height.',
+  part:'Call every middle ball and lob, and shift together to close the gap between you.',
+  read:'Watch the opponent, not just the ball: find the weaker side and the cues before a speed-up.',
+  game:'Notice repeated lost points and change one thing: target, pace, or a timeout.'};
+function reportText(p){const st=strengths(p),w=workOn(p),org=S.settings.org||'our program';
+  return `Hi ${p.name.split(' ')[0]},
+
+Thanks for completing the Court IQ assessment with ${org}. Your rating is ${fmt(p.final)}.
+
+How it was set:
+- Court IQ (scenario test): ${fmt(p.iq.tier)}
+- Skills check (on court): ${fmt(p.exec)}
+Your rating is the lower of your skills level and your court IQ plus 0.5.
+
+Strongest areas: ${st.top.map(d=>DOM[d]).join(', ')}
+Areas to develop: ${st.low.map(d=>DOM[d]).join(', ')}
+${w.items.length?`\nSkills to work on${w.next?' toward '+LNAME[w.next]:''}:\n${w.items.map(s=>'- '+s.name+' (target: '+s.criteria+')').join('\n')}\n`:''}
+${S.settings.assessor||''}`.trim();}
+function reportHTML(p){
+  const st=strengths(p),w=workOn(p),org=S.settings.org||'',date=new Date(p.skillsAt||p.iq?.at||Date.now()).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  const bar=(v,th)=>`<div style="height:12px;background:#e3e8e4;border-radius:3px;position:relative;overflow:hidden"><div style="width:${Math.round((v||0)*100)}%;height:100%;background:${v>=th?'#2f7d4f':v>=th-.15?'#b7791f':'#b33a3a'}"></div></div>`;
+  const tested=LEVELS.map(L=>({L,st:levelStats(p.marks,L)})).filter(x=>x.st.marked);
+  const markLabel={'reliable':'Reliable','inconsistent':'Inconsistent','not-yet':'Not yet'};
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=Source+Sans+3:wght@400;600;700&display=swap"><title>Court IQ Report · ${esc(p.name)}</title>
+<style>body{margin:0;background:#f3f5f2;color:#17231d;font:16px/1.5 "Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:720px;margin:0 auto;padding:32px 20px;display:grid;gap:22px}
+h1,h2{font-family:"Barlow Condensed","Arial Narrow",sans-serif;margin:0;line-height:1.1}
+h1{font-size:2rem;text-transform:uppercase}h1 span{color:#2f5d8a}h2{font-size:1.35rem;border-bottom:2px solid #2f5d8a;padding-bottom:4px}
+.card{background:#fff;border:1px solid #d7dfd9;border-radius:10px;padding:20px;display:grid;gap:12px}
+.lab{font:500 .72rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;color:#5b6a62}
+.rating{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end}.rating div{display:grid}.rating b{font:700 3.4rem/1 "Barlow Condensed","Arial Narrow",sans-serif;color:#2f5d8a}.rating .sm b{font-size:2rem;color:#17231d}
+.row{display:grid;grid-template-columns:10rem 1fr 3rem;gap:10px;align-items:center;font-variant-numeric:tabular-nums}
+ul{margin:0;padding-left:20px;display:grid;gap:6px}table{border-collapse:collapse;width:100%;font-size:.94rem}td{padding:6px 4px;border-bottom:1px solid #e3e8e4;vertical-align:top}
+.m{font-weight:600;white-space:nowrap}.m.reliable{color:#2f7d4f}.m.inconsistent{color:#b7791f}.m.not-yet{color:#b33a3a}
+p{margin:0}.muted{color:#5b6a62;font-size:.92rem}@media print{body{background:#fff}.card{break-inside:avoid}}</style></head><body><div class="page">
+<div><div class="lab">${esc(org)}${org&&p.event?' · ':''}${esc(p.event||'')}</div><h1>Court <span>IQ</span> Player Report</h1><p class="muted">${esc(p.name)} · ${date}${S.settings.assessor?' · Assessed by '+esc(S.settings.assessor):''}</p></div>
+<div class="card"><div class="rating"><div><span class="lab">Rating</span><b>${fmt(p.final)}</b></div><div class="sm"><span class="lab">Court IQ</span><b>${fmt(p.iq.tier)}</b></div><div class="sm"><span class="lab">Skills check</span><b>${fmt(p.exec)}</b></div></div>
+<p>Your rating combines what you know about the game with what you can do on court. It is the lower of your skills level and your court IQ plus half a level, so neither strong hands nor strong game sense alone sets it.</p></div>
+<div class="card"><h2>Court IQ</h2><p>You worked through 25 game situations across five areas of doubles strategy. Each answer was scored against ratings from experienced players.</p>
+${Object.keys(DOM).map(d=>`<div class="row"><span>${DOM[d]}</span>${bar(p.iq.dom[d],.75)}<span>${pctS(p.iq.dom[d])}</span></div>`).join('')}
+<p><b>Strongest:</b> ${st.top.map(d=>DOM[d]).join(' and ')}.</p>
+<p><b>To develop:</b> ${st.low.map(d=>DOM[d]).join(' and ')}.</p>
+<ul>${st.low.map(d=>`<li><b>${DOM[d]}.</b> ${DOM_TIP[d]}</li>`).join('')}</ul>
+<p class="muted">${p.iq.blind.length>=2?`On ${p.iq.blind.length} situations you were certain of an answer that wasn't a strong choice. Those are worth discussing with a coach, because confident habits are the hardest to spot.`:'Your confidence matched your answers well: when you were sure, you were usually right.'}</p></div>
+<div class="card"><h2>Skills check</h2>${tested.map(({L})=>`<div><div class="lab" style="margin-bottom:4px">${LNAME[L]} skills</div><table>${SKILLS.filter(s=>s.level===L&&p.marks?.[s.id]).map(s=>`<tr><td>${esc(s.name)}<br><span class="muted">Target: ${esc(s.criteria)}</span></td><td class="m ${p.marks[s.id]}">${markLabel[p.marks[s.id]]}</td></tr>`).join('')}</table></div>`).join('')}</div>
+${w.items.length?`<div class="card"><h2>What to work on${w.next?' toward '+LNAME[w.next]:''}</h2><ul>${w.items.map(s=>`<li><b>${esc(s.name)}.</b> ${esc(s.test)} Target: ${esc(s.criteria)}.</li>`).join('')}</ul></div>`:''}
+<p class="muted">Court IQ assessment${org?' · '+esc(org):''}. Ratings are for event placement and may be reviewed after play.</p>
+</div></body></html>`;
+}
+function renderReport(){
+  const p=player();if(!p||p.final==null)return setView('player');
+  const html=reportHTML(p);
+  V.innerHTML=`<section class="panel"><div class="meta"><button class="linkbtn" id="back">← ${esc(p.name)}</button></div>
+    <h2>Player report</h2>
+    <p>Download the report and attach it to an email, or copy the short summary into the message body.${p.email?` Send to <b>${esc(p.email)}</b>.`:''}</p>
+    <p class="muted" style="font-size:.9rem">The report shows ratings, domain results and skills. It doesn't include scenario text or answer keys, so the bank stays usable.</p>
+    <div class="row">${S.downloads?'<button class="btn" id="dl">Download report</button>':''}<button class="btn ghost" id="copy">Copy summary</button>${p.email?'<button class="btn ghost" id="copyemail">Copy email address</button>':''}</div>
+    <textarea id="summary" readonly style="min-height:220px">${esc(reportText(p))}</textarea></section>
+  <section class="panel"><span class="label">Preview</span><iframe id="prev" title="Report preview" style="width:100%;height:900px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></section>`;
+  document.getElementById('prev').srcdoc=html;
+  document.getElementById('back').onclick=()=>setView('player');
+  const copy=async(t,el)=>{try{await navigator.clipboard.writeText(t);toast('Copied')}catch(e){if(el){el.focus();el.select()}toast('Select and copy the text')}};
+  document.getElementById('copy').onclick=()=>copy(document.getElementById('summary').value,document.getElementById('summary'));
+  document.getElementById('copyemail')?.addEventListener('click',()=>copy(p.email));
+  document.getElementById('dl')?.addEventListener('click',async()=>{try{await S.downloads.save({filename:`Court-IQ-Report-${p.name.replace(/[^\w]+/g,'-')}.html`,data:new Blob([html],{type:'text/html'})});await savePlayer(p,{reportAt:new Date().toISOString()})}catch(e){if(e?.code!=='declined')toast('Download unavailable here')}});
+}
+
+// ---------- reference views ----------
+function renderBank(){
+  const items=BANK.filter(i=>S.bankLv==='all'||i.lv===S.bankLv||(S.bankLv==='anim'&&i.anim));
+  V.innerHTML=`<section class="panel"><h2>Scenario bank</h2>
+    <p class="muted">${BANK.length} scenarios, 3 per domain at each level. Each test draws 5 per level, one from each domain, 25 in all. Keys run from −2 to +2. Don't show this screen to players.</p>
+    <div class="row">${['all',...LEVELS,'anim'].map(l=>`<button class="chip" aria-pressed="${S.bankLv===l}" data-l="${l}">${l==='all'?'All levels':l==='anim'?'Animated':LNAME[l]}</button>`).join('')}</div></section>
+    ${items.map(it=>`<section class="panel"><span class="label">${it.id} · ${LNAME[it.lv]} · ${DOM[it.dom]}</span><h3>${esc(it.t)}</h3>${scene(it)}<p>${esc(it.sit)}</p>
+      <div style="display:grid;gap:8px">${it.o.map(o=>`<div class="keyrow"><span class="k ${o[1]>0?'pos':o[1]<0?'neg':''}">${o[1]>0?'+':''}${o[1]}</span><span>${esc(o[0])}<br><span class="muted">${esc(o[2])}</span></span></div>`).join('')}</div></section>`).join('')}`;
+  initScenes(V,{autoplay:false});
+  V.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{S.bankLv=b.dataset.l;renderBank()});
+}
+function renderSkillsRef(){
+  V.innerHTML=`<section class="panel"><h2>Skills list</h2><p class="muted">50 observable doubles skills, 10 per level: 3.0 to 4.5 from Drill Lab, plus 5.0. Use these for the on-court check.</p></section>
+  ${LEVELS.map(L=>`<details class="lvl"><summary><span>${LNAME[L]}</span><span class="muted">10 skills</span></summary>${SKILLS.filter(s=>s.level===L).map(s=>`<div class="skill"><span class="name">${esc(s.name)} <span class="pill mut">${esc(s.category)}</span></span><span>${esc(s.test)}</span><span class="crit">Pass: ${esc(s.criteria)}</span></div>`).join('')}</details>`).join('')}`;
+}
+function renderSettings(){
+  V.innerHTML=`<section class="panel"><h2>Settings</h2><p class="muted">These appear on player reports.</p>
+    <label for="s-org">League or organization<input id="s-org" value="${esc(S.settings.org)}"></label>
+    <label for="s-assessor">Assessor name<input id="s-assessor" value="${esc(S.settings.assessor)}"></label>
+    <label for="s-event">Default event<input id="s-event" value="${esc(S.settings.event||'')}"></label>
+    <div><button class="btn" id="s-save" ${S.ready?'':'disabled'}>Save settings</button></div></section>
+    <section class="panel"><h3>How ratings work</h3>
+    <p><b>Court IQ</b> is the highest level where the player scores 70%+ on the scenario items, with every lower level also passed. Each item scores the best pick's key minus the worst pick's key.</p>
+    <p><b>Skills level</b> is the highest level with all 10 skills marked and 80%+, where each lower level is either fully tested at 90%+ or spot-checked with 3+ items all Reliable.</p>
+    <p><b>Quarter steps.</b> A player who passes a level and comes close on the next one gets an extra 0.25 (for example 4.75): court IQ needs 55%+ on the next level's items; skills need every next-level item marked and 60%+.</p>
+    <p><b>Rating</b> is the lower of the skills level and court IQ + 0.5.</p>
+    <p class="muted">${S.local?'Player records are stored in this browser on this device. Back them up regularly, and restore the backup to move them to another device.':'Your player records are private to you. Other organizers using this tool see only their own.'}</p></section>
+    ${S.local?`<section class="panel"><h3>Backup</h3><p class="muted">Clearing this browser's site data deletes your records. A backup file restores them on any device.</p>
+    <div class="row"><button class="btn ghost" id="bk-save">Download backup</button><label class="btn ghost" for="bk-file" style="display:inline-block">Restore from backup<input id="bk-file" type="file" accept="application/json,.json" hidden></label></div>
+    <p class="muted" id="bk-msg"></p></section>`:''}`;
+  document.getElementById('s-save').onclick=async()=>{const s={type:'settings',org:document.getElementById('s-org').value.trim(),assessor:document.getElementById('s-assessor').value.trim(),event:document.getElementById('s-event').value.trim()};
+    try{await col().doc('settings').set(s);S.settings=s;toast('Saved')}catch(e){toast('Couldn\'t save')}};
+  if(!S.local)return;
+  document.getElementById('bk-save').onclick=()=>localDownloads.save({filename:`court-iq-backup-${new Date().toISOString().slice(0,10)}.json`,data:new Blob([JSON.stringify({app:'court-iq',version:1,data:LocalDB.dump()},null,1)],{type:'application/json'})});
+  document.getElementById('bk-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const msg=document.getElementById('bk-msg');
+    try{const j=JSON.parse(await f.text());if(j.app!=='court-iq'||!j.data)throw 0;
+      const cur=LocalDB.dump();for(const [k,v] of Object.entries(j.data))cur[k]={...(cur[k]||{}),...v};LocalDB.load(cur);
+      const n=Object.values(j.data).reduce((a,c)=>a+Object.values(c).filter(d=>d.type==='player').length,0);msg.textContent=`Restored ${n} player record${n===1?'':'s'}. Records with the same ID were replaced by the backup.`}
+    catch(err){msg.textContent='That file isn\'t a Court IQ backup.'}};
+}
+
+// ---------- local storage (when hosted outside claude.ai) ----------
+const LocalDB=(()=>{const KEY='courtiq_db_v1';let data={};try{data=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){}
+  const subs=new Set();const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){throw {code:'storage',message:'This browser blocked saving. Check that site data is allowed.'}}subs.forEach(f=>f())};
+  function collection(path){const c={path,
+    doc(id){id=id||(Date.now().toString(36)+Math.random().toString(36).slice(2,8));return {id,path:path+'/'+id,
+      async get(){const v=data[path]?.[id];return {id,exists:!!v,data:()=>clone(v)}},
+      async set(v){(data[path]??={})[id]=clone(v);save()},
+      async update(v){const cur=data[path]?.[id];if(!cur)throw {code:'not_found',message:'Record not found'};Object.assign(cur,clone(v));save()},
+      async delete(){if(data[path])delete data[path][id];save()}}},
+    async add(v){const d=c.doc();await d.set(v);return d},
+    onSnapshot(next){const f=()=>next({docs:Object.entries(data[path]||{}).map(([id,v])=>({id,exists:true,data:()=>clone(v)}))});subs.add(f);setTimeout(f,0);return()=>subs.delete(f)}};return c}
+  return {collection,dump:()=>clone(data),load:d=>{data=d;save()}};
+})();
+const localDownloads={async save({filename,data}){const u=URL.createObjectURL(data);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}};
+function startSync(fail){
+  col().onSnapshot(q=>{
+    const docs=q.docs.map(d=>({...d.data(),_id:d.id}));
+    const set=docs.find(d=>d._id==='settings');if(set)S.settings=set;
+    const fresh=docs.filter(d=>d.type==='player');
+    S.players=fresh.map(f=>{const old=S.players.find(o=>o._id===f._id);return old&&S.view!=='players'&&old._id===S.cur?old:f});
+    const first=!S.ready;S.ready=true;
+    if(first||S.view==='players')render();
+  },e=>fail('Couldn\'t load player records ('+(e.code||'error')+').'));
+}
+
+// ---------- boot ----------
+render();
+(async()=>{
+  const c=window.claude;const fail=t=>{const m=document.getElementById('gatemsg');if(m)m.textContent=t};
+  if(!c?.use){S.local=true;S.db=LocalDB;S.uid='local';S.downloads=localDownloads;
+    try{navigator.storage?.persist?.()}catch(e){}
+    return startSync(fail);}
+  const [db,user,downloads]=await Promise.all([c.use('db'),c.use('user'),c.use('downloads')]);
+  S.downloads=downloads;
+  if(!db||!user)return fail('Sign in to claude.ai to keep player records. You can still browse the scenario bank and skills list.');
+  S.db=db;S.uid=await user.id();
+  if(!S.uid)return fail('Sign in to claude.ai to keep player records.');
+  if(await user.can('data.write')===false)return fail('Your access to this tool is view-only. Ask the person who shared it for Contributor access.');
+  startSync(fail);
+})();
+</script>
+
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js').catch(()=>{}));</script>
+</body></html>
